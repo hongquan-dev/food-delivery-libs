@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.fooddelivery</groupId>
+        <artifactId>food-delivery-libs</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>common-dto-lib</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Food Delivery :: Common DTO Library</name>
+    <description>Shared Enums, Base DTOs, and Pagination Models for Food Delivery Microservices</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.fooddelivery</groupId>
+            <artifactId>common-id-lib</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+</project>
