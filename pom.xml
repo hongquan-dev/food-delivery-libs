@@ -17,6 +17,7 @@
         <module>common-id-lib</module>
         <module>common-dto-lib</module>
         <module>common-web-lib</module>
+        <module>common-api-flow-lib</module>
     </modules>
 
     <properties>
@@ -52,6 +53,11 @@
             <dependency>
                 <groupId>com.fooddelivery</groupId>
                 <artifactId>common-web-lib</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fooddelivery</groupId>
+                <artifactId>common-api-flow-lib</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>
