@@ -1,9 +1,9 @@
-package com.fooddelivery.apiflow;
+package com.fooddelivery.apiflow.autoconfigure;
 
-import com.fooddelivery.apiflow.registry.ApiRegistry;
-import com.fooddelivery.apiflow.registry.ApiRouteVerifier;
-import com.fooddelivery.apiflow.web.ApiFlowInterceptor;
-import com.fooddelivery.apiflow.web.RequestCachingFilter;
+import com.fooddelivery.apiflow.route.ApiRegistry;
+import com.fooddelivery.apiflow.route.ApiRouteVerifier;
+import com.fooddelivery.apiflow.web.interceptor.ApiFlowInterceptor;
+import com.fooddelivery.apiflow.web.filter.RequestCachingFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.boot.autoconfigure.AutoConfiguration;

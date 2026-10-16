@@ -37,6 +37,31 @@ Controller
 
 ---
 
+## Cấu trúc package
+
+```
+com.fooddelivery.apiflow
+├── autoconfigure/       Tự cấu hình Spring Boot
+│   ├── ApiFlowAutoConfiguration      Khai báo các bean của lib
+│   └── ApiFlowProperties             Cấu hình api-flow.*
+├── route/               Quản lý route trong api-routes.xml
+│   ├── ApiRegistry                   Đọc api-routes.xml, tìm route theo method + path
+│   ├── RouteDefinition               Thông tin một route
+│   ├── ApiRouteVerifier              Đối chiếu route với controller, resolve validator lúc khởi động
+│   └── xml/ApiConfigWrapper          Model map file XML
+├── validation/          Kiểm tra body
+│   ├── JsonSchemaUtil                Kiểm tra body theo JSON Schema
+│   └── ResolvedValidator             Gọi validator nghiệp vụ của service
+├── exception/           Lỗi cấu hình lúc khởi động
+│   ├── ApiFlowConfigException
+│   └── ApiFlowConfigFailureAnalyzer  In lỗi dạng "APPLICATION FAILED TO START"
+└── web/
+    ├── filter/          RequestCachingFilter, CachedBodyHttpServletRequest (cache body JSON)
+    └── interceptor/     ApiFlowInterceptor (route → schema → validator)
+```
+
+---
+
 ## Cài đặt
 
 Các service trong dự án đã có lib này qua `common-lib`, không cần làm gì thêm.

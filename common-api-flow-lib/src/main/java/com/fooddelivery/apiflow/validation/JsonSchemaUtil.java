@@ -1,4 +1,4 @@
-package com.fooddelivery.apiflow.schema;
+package com.fooddelivery.apiflow.validation;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;

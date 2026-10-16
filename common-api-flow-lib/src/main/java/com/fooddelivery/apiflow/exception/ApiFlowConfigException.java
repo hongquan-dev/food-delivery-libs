@@ -1,4 +1,4 @@
-package com.fooddelivery.apiflow.registry;
+package com.fooddelivery.apiflow.exception;
 
 import java.util.List;
 

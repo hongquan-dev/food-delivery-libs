@@ -1,8 +1,10 @@
-package com.fooddelivery.apiflow.registry;
+package com.fooddelivery.apiflow.route;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
-import com.fooddelivery.apiflow.schema.JsonSchemaUtil;
+import com.fooddelivery.apiflow.exception.ApiFlowConfigException;
+import com.fooddelivery.apiflow.route.xml.ApiConfigWrapper;
+import com.fooddelivery.apiflow.validation.JsonSchemaUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.core.io.ClassPathResource;
@@ -150,34 +152,4 @@ public class ApiRegistry {
     }
 
     private record PatternRoute(PathPattern pattern, RouteDefinition route) {}
-
-    public static class RouteDefinition {
-        private final String method;
-        private final String path;
-        private final String validator;
-        private final String schemaPath;
-        private final JsonNode schema;
-        private final String controllerName;
-
-        // Set by ApiRouteVerifier at startup, null when the route has no validator
-        private ResolvedValidator resolvedValidator;
-
-        public RouteDefinition(String method, String path, String validator, String schemaPath, JsonNode schema, String controllerName) {
-            this.method = method;
-            this.path = path;
-            this.validator = validator;
-            this.schemaPath = schemaPath;
-            this.schema = schema;
-            this.controllerName = controllerName;
-        }
-
-        public String getMethod() { return method; }
-        public String getPath() { return path; }
-        public String getValidator() { return validator; }
-        public String getSchemaPath() { return schemaPath; }
-        public JsonNode getSchema() { return schema; }
-        public String getControllerName() { return controllerName; }
-        public ResolvedValidator getResolvedValidator() { return resolvedValidator; }
-        void setResolvedValidator(ResolvedValidator resolvedValidator) { this.resolvedValidator = resolvedValidator; }
-    }
 }

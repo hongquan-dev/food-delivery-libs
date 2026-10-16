@@ -1,4 +1,4 @@
-package com.fooddelivery.apiflow.web;
+package com.fooddelivery.apiflow.web.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;

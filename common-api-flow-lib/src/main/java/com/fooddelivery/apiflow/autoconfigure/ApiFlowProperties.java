@@ -1,4 +1,4 @@
-package com.fooddelivery.apiflow;
+package com.fooddelivery.apiflow.autoconfigure;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.unit.DataSize;

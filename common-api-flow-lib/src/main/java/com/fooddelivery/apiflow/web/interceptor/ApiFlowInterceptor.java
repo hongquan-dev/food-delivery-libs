@@ -1,9 +1,11 @@
-package com.fooddelivery.apiflow.web;
+package com.fooddelivery.apiflow.web.interceptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fooddelivery.apiflow.registry.ApiRegistry;
-import com.fooddelivery.apiflow.registry.ResolvedValidator;
-import com.fooddelivery.apiflow.schema.JsonSchemaUtil;
+import com.fooddelivery.apiflow.route.ApiRegistry;
+import com.fooddelivery.apiflow.route.RouteDefinition;
+import com.fooddelivery.apiflow.validation.ResolvedValidator;
+import com.fooddelivery.apiflow.validation.JsonSchemaUtil;
+import com.fooddelivery.apiflow.web.filter.CachedBodyHttpServletRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
@@ -29,7 +31,7 @@ public class ApiFlowInterceptor implements HandlerInterceptor {
         String path = request.getRequestURI();
         String method = request.getMethod();
 
-        ApiRegistry.RouteDefinition route = apiRegistry.getRoute(method, path);
+        RouteDefinition route = apiRegistry.getRoute(method, path);
 
         if (route == null) {
             log.warn("API not declared in routes config: [{}] {}", method, path);

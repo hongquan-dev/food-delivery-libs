@@ -1,5 +1,7 @@
-package com.fooddelivery.apiflow.registry;
+package com.fooddelivery.apiflow.route;
 
+import com.fooddelivery.apiflow.exception.ApiFlowConfigException;
+import com.fooddelivery.apiflow.validation.ResolvedValidator;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -47,7 +49,7 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
                 .getHandlerMethods();
 
         List<String> errors = new ArrayList<>();
-        for (ApiRegistry.RouteDefinition route : apiRegistry.getRoutes()) {
+        for (RouteDefinition route : apiRegistry.getRoutes()) {
             String label = "[" + route.getMethod() + "] " + route.getPath();
             if (!hasControllerMapping(route, handlerMethods)) {
                 errors.add(label + ": no controller method is mapped to this method and path");
@@ -65,7 +67,7 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
         log.info("API flow: {} routes verified against controllers", apiRegistry.getRoutes().size());
     }
 
-    private void resolveValidator(ApiRegistry.RouteDefinition route, String label, List<String> errors) {
+    private void resolveValidator(RouteDefinition route, String label, List<String> errors) {
         String config = route.getValidator();
         int lastDotIndex = config.lastIndexOf('.');
         if (lastDotIndex <= 0 || lastDotIndex == config.length() - 1) {
@@ -111,7 +113,7 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
         route.setResolvedValidator(new ResolvedValidator(bean, method));
     }
 
-    private boolean hasControllerMapping(ApiRegistry.RouteDefinition route, Map<RequestMappingInfo, HandlerMethod> handlerMethods) {
+    private boolean hasControllerMapping(RouteDefinition route, Map<RequestMappingInfo, HandlerMethod> handlerMethods) {
         String normalizedPath = ApiRegistry.normalizePattern(route.getPath());
         for (RequestMappingInfo info : handlerMethods.keySet()) {
             if (supportsMethod(info, route.getMethod())

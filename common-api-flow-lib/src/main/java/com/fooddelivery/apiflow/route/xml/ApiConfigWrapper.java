@@ -1,4 +1,4 @@
-package com.fooddelivery.apiflow.registry;
+package com.fooddelivery.apiflow.route.xml;
 
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
