@@ -48,21 +48,25 @@ Các service trong dự án đã có lib này qua `common-lib`. Nếu muốn dù
 ## Cách dùng
 
 ```java
-import com.fooddelivery.id.EntityType;
-import com.fooddelivery.id.IdUtils;
+import com.fooddelivery.id.entity.EntityType;
+import com.fooddelivery.id.entity.IdUtils;
 
 // Sinh ID
 String orderId = IdUtils.generate(EntityType.ORDER);       // vd: "17290500004007"
-Long userId = Long.parseLong(IdUtils.generate(EntityType.USER));
+        Long userId = Long.parseLong(IdUtils.generate(EntityType.USER));
 
-// Giải mã
-EntityType type = IdUtils.decodeObjectType(orderId);       // EntityType.ORDER
-int typeCode   = IdUtils.decodeObjectTypeCode(orderId);    // 4
-long epochSec  = IdUtils.decodeTimestamp(orderId);         // 1729050000
+        // Giải mã
+        EntityType type = IdUtils.decodeObjectType(orderId);       // EntityType.ORDER
+        int typeCode = IdUtils.decodeObjectTypeCode(orderId);    // 4
+        long epochSec = IdUtils.decodeTimestamp(orderId);         // 1729050000
 
 // Tra cứu EntityType
-EntityType.fromCode(2);            // RESTAURANT
-EntityType.fromName("Đơn hàng");   // ORDER (nhận tên enum, tên tiếng Anh hoặc tiếng Việt, không phân biệt hoa thường)
+EntityType.
+
+        fromCode(2);            // RESTAURANT
+EntityType.
+
+        fromName("Đơn hàng");   // ORDER (nhận tên enum, tên tiếng Anh hoặc tiếng Việt, không phân biệt hoa thường)
 ```
 
 Các hàm giải mã ném `IllegalArgumentException` nếu ID không phải chuỗi đúng 14 chữ số, hoặc mã loại không tồn tại.

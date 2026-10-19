@@ -208,13 +208,6 @@ api-flow.exclude-paths=/auth/.well-known/**,/auth/oauth2/callback/**
 #api-flow.use-default-excludes=false
 ```
 
-Có thể đặt cấu hình qua biến môi trường (khi deploy bằng Docker/Kubernetes) hoặc tham số dòng lệnh:
-
-```bash
-API_FLOW_MAX_BODY_SIZE=2MB
-java -jar service.jar --api-flow.max-body-size=2MB
-```
-
 ### Danh sách loại trừ
 
 Lib tự loại trừ sẵn các endpoint hệ thống, vì chúng không phải API nghiệp vụ và không cần khai báo trong `api-routes.xml`:
@@ -301,22 +294,3 @@ Khởi động thành công thì log có dòng:
 ```
 INFO  ApiRouteVerifier - API flow: 12 routes verified against controllers
 ```
-
----
-
-## Câu hỏi thường gặp
-
-**Thêm API mới vào controller nhưng gọi bị 404 `API not found in system configuration!`?**
-Chưa khai báo API đó trong `api-routes.xml`. Mọi API phải được khai báo. Lúc khởi động, log cũng có cảnh báo `is not declared in api-routes.xml` cho endpoint này.
-
-**Service không khởi động, báo `APPLICATION FAILED TO START` kèm danh sách lỗi route?**
-Sửa lần lượt các dòng trong danh sách. Ý nghĩa từng loại lỗi xem mục [Kiểm tra cấu hình lúc khởi động](#kiểm-tra-cấu-hình-lúc-khởi-động).
-
-**Route có schema nhưng body đúng vẫn bị 400 `Invalid request body!`?**
-Kiểm tra header `Content-Type: application/json`. Lib chỉ đọc body JSON. Content type khác thì body bị coi là rỗng.
-
-**Upload file thì sao?**
-Lib không đụng vào request multipart. Giới hạn upload cấu hình qua `spring.servlet.multipart.max-file-size` và `spring.servlet.multipart.max-request-size`.
-
-**Sửa lib xong làm sao các service nhận bản mới?**
-Xem README ở thư mục gốc `food-delivery-libs`.

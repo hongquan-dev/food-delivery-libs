@@ -1,4 +1,4 @@
-package com.fooddelivery;
+package com.fooddelivery.id;
 
 public class Main {
     public static void main(String[] args) {

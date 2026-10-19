@@ -1,4 +1,4 @@
-package com.fooddelivery.id;
+package com.fooddelivery.id.entity;
 
 public enum EntityType {
 

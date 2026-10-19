@@ -1,4 +1,4 @@
-package com.fooddelivery.id;
+package com.fooddelivery.id.entity;
 
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicInteger;
