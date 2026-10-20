@@ -16,7 +16,6 @@ public final class JsonSchemaUtil {
 
     private JsonSchemaUtil() {}
 
-    // Load a schema file from the classpath
     public static JsonNode loadSchema(String classpathLocation) throws IOException {
         try (InputStream inputStream = new ClassPathResource(classpathLocation).getInputStream()) {
             JsonNode schema = objectMapper.readTree(inputStream);
@@ -27,7 +26,6 @@ public final class JsonSchemaUtil {
         }
     }
 
-    // True if the body matches the schema, false otherwise
     public static boolean validate(JsonNode schema, String requestBody) {
         if (requestBody == null || requestBody.isBlank()) {
             return false;

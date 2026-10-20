@@ -20,8 +20,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-// Loads api-routes.xml at startup. Every problem in the file (duplicate route, bad method/path, unreadable schema)
-// is collected and reported at once, and the service refuses to start.
 public class ApiRegistry {
     private static final Logger log = LogManager.getLogger(ApiRegistry.class);
 
@@ -29,11 +27,8 @@ public class ApiRegistry {
 
     private static final List<String> HTTP_METHODS = List.of("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE");
 
-    // Routes without variables, looked up directly by "METHOD:path"
     private final Map<String, RouteDefinition> exactRoutes = new HashMap<>();
 
-    // Routes with variables (e.g. /orders/{id}), grouped by method and sorted most specific first,
-    // so /orders/new wins over /orders/{id} — same rule as Spring MVC
     private final Map<String, List<PatternRoute>> patternRoutes = new HashMap<>();
 
     private final List<RouteDefinition> allRoutes = new ArrayList<>();
@@ -58,7 +53,6 @@ public class ApiRegistry {
         }
 
         List<String> errors = new ArrayList<>();
-        // "METHOD:normalized path" -> path as written, to report duplicates like /items/{id} and /items/{itemId}
         Map<String, String> declared = new HashMap<>();
 
         for (ApiConfigWrapper.RouteXmlDto dto : config.getRoutes()) {
@@ -72,6 +66,12 @@ public class ApiRegistry {
             }
             if (!path.startsWith("/")) {
                 errors.add(label + ": <path> must not be empty and must start with '/'");
+                continue;
+            }
+
+            String controller = dto.getController() == null ? "" : dto.getController().trim();
+            if (controller.isEmpty()) {
+                errors.add(label + ": missing required <controller>");
                 continue;
             }
 
@@ -104,7 +104,7 @@ public class ApiRegistry {
             }
 
             String validator = dto.getValidator() == null || dto.getValidator().isBlank() ? null : dto.getValidator().trim();
-            RouteDefinition route = new RouteDefinition(method, path, validator, schemaPath, schemaNode, dto.getController());
+            RouteDefinition route = new RouteDefinition(method, path, validator, schemaPath, schemaNode, controller);
             allRoutes.add(route);
 
             if (pattern.hasPatternSyntax()) {
@@ -145,8 +145,6 @@ public class ApiRegistry {
         return apiRoutesLocation;
     }
 
-    // Variable names do not change what a path matches: /items/{id} and /items/{itemId} are the same route.
-    // Regex variables ({id:\d+}) and catch-all variables ({*path}) are kept as written.
     static String normalizePattern(String path) {
         return path.replaceAll("\\{(?!\\*)[^}:]+}", "{}");
     }

@@ -14,8 +14,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Map;
 
-// Caches JSON request bodies (up to maxBodySize bytes) so the interceptor and the controller can both read them.
-// Other content types (multipart, form, binary uploads) pass through untouched and are never loaded into memory here.
 public class RequestCachingFilter extends OncePerRequestFilter {
     private static final Logger log = LogManager.getLogger(RequestCachingFilter.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -39,7 +37,6 @@ public class RequestCachingFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Content-Length may be missing (chunked transfer), so never read more than maxBodySize + 1 bytes
         int readLimit = (int) Math.min(maxBodySize + 1, Integer.MAX_VALUE - 8);
         byte[] body = request.getInputStream().readNBytes(readLimit);
         if (body.length > maxBodySize) {
@@ -57,7 +54,6 @@ public class RequestCachingFilter extends OncePerRequestFilter {
         response.getWriter().write(objectMapper.writeValueAsString(Map.of("error", "Request body too large!")));
     }
 
-    // application/json and any +json type (e.g. application/merge-patch+json)
     private static boolean isJson(String contentType) {
         if (contentType == null) {
             return false;

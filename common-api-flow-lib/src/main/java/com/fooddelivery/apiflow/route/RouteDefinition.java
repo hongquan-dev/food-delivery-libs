@@ -3,7 +3,6 @@ package com.fooddelivery.apiflow.route;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fooddelivery.apiflow.validation.ResolvedValidator;
 
-// One route of api-routes.xml, loaded by ApiRegistry
 public class RouteDefinition {
     private final String method;
     private final String path;
@@ -12,7 +11,6 @@ public class RouteDefinition {
     private final JsonNode schema;
     private final String controllerName;
 
-    // Set by ApiRouteVerifier at startup, null when the route has no validator
     private ResolvedValidator resolvedValidator;
 
     public RouteDefinition(String method, String path, String validator, String schemaPath, JsonNode schema, String controllerName) {

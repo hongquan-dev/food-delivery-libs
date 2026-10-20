@@ -45,12 +45,9 @@ public class ApiFlowInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        // Resolved once at startup by ApiRouteVerifier
         ResolvedValidator validator = route.getResolvedValidator();
         boolean hasValidator = validator != null;
 
-        // Only the body cached by RequestCachingFilter is used (JSON, size-limited). Never read the raw stream here:
-        // a non-JSON body is not size-limited and would also be consumed before the controller sees it.
         String requestBody = "";
         if (route.getSchema() != null || hasValidator) {
             CachedBodyHttpServletRequest cachedRequest = WebUtils.getNativeRequest(request, CachedBodyHttpServletRequest.class);

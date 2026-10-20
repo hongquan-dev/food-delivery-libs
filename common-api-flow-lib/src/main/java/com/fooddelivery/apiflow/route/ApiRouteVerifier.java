@@ -24,11 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-// Runs once all beans are created and before the server accepts requests:
-//  - resolves every <validator> to a bean + method, so nothing is looked up per request
-//  - checks that every route in api-routes.xml has a matching controller mapping
-// Any error stops the startup. Controller endpoints missing from api-routes.xml only log a warning,
-// because endpoints under the excluded paths are allowed to be undeclared.
 public class ApiRouteVerifier implements SmartInitializingSingleton {
     private static final Logger log = LogManager.getLogger(ApiRouteVerifier.class);
 
@@ -59,11 +54,12 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
             }
         }
 
+        collectUndeclaredEndpointErrors(handlerMethods, errors);
+
         if (!errors.isEmpty()) {
             throw new ApiFlowConfigException(apiRegistry.getApiRoutesLocation(), errors);
         }
 
-        warnUndeclaredEndpoints(handlerMethods);
         log.info("API flow: {} routes verified against controllers", apiRegistry.getRoutes().size());
     }
 
@@ -79,7 +75,6 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
 
         Class<?> clazz;
         try {
-            // Validator classes live in the service, so load them with the service's class loader
             clazz = ClassUtils.forName(className, applicationContext.getClassLoader());
         } catch (ClassNotFoundException | LinkageError e) {
             errors.add(label + ": validator class not found: " + className);
@@ -124,9 +119,9 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
         return false;
     }
 
-    private void warnUndeclaredEndpoints(Map<RequestMappingInfo, HandlerMethod> handlerMethods) {
+    private void collectUndeclaredEndpointErrors(Map<RequestMappingInfo, HandlerMethod> handlerMethods,
+                                                 List<String> errors) {
         handlerMethods.forEach((info, handlerMethod) -> {
-            // Endpoints of Spring itself or of other libraries (e.g. /error) are not business APIs
             if (!isApplicationController(handlerMethod)) {
                 return;
             }
@@ -135,10 +130,10 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
                 if (isExcluded(pattern) || isDeclared(pattern, methods)) {
                     continue;
                 }
-                log.warn("Controller endpoint {} {} ({}#{}) is not declared in {}, its requests will get 404",
-                        methods.isEmpty() ? "[ANY]" : methods, pattern,
-                        handlerMethod.getBeanType().getSimpleName(), handlerMethod.getMethod().getName(),
-                        apiRegistry.getApiRoutesLocation());
+                errors.add((methods.isEmpty() ? "[ANY]" : methods.toString()) + " " + pattern
+                        + ": controller endpoint " + handlerMethod.getBeanType().getSimpleName() + "#"
+                        + handlerMethod.getMethod().getName() + " is not declared in "
+                        + apiRegistry.getApiRoutesLocation());
             }
         });
     }
@@ -160,7 +155,6 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
         return !packageName.startsWith("org.springframework.") && !packageName.startsWith("org.springdoc.");
     }
 
-    // No method condition means the controller accepts every method; HEAD is served by GET mappings in Spring MVC
     private static boolean supportsMethod(RequestMappingInfo info, String method) {
         Set<RequestMethod> methods = info.getMethodsCondition().getMethods();
         return methods.isEmpty()

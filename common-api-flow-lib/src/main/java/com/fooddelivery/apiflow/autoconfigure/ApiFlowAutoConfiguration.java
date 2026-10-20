@@ -19,9 +19,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.List;
 
-// Registered via META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports,
-// so any servlet service that has this lib on its classpath gets the API flow without extra code.
-// Every service must provide its routes file (default: classpath api-routes.xml).
 @AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @EnableConfigurationProperties(ApiFlowProperties.class)
@@ -34,8 +31,6 @@ public class ApiFlowAutoConfiguration {
         return new ApiRegistry(properties.getRoutesLocation());
     }
 
-    // Caches JSON bodies (max api-flow.max-body-size) so the interceptor and the controller can both read them.
-    // Runs early so the body is cached before any other filter touches the stream.
     @Bean
     @ConditionalOnMissingBean(name = "requestCachingFilter")
     public FilterRegistrationBean<RequestCachingFilter> requestCachingFilter(ApiFlowProperties properties) {
@@ -45,7 +40,6 @@ public class ApiFlowAutoConfiguration {
         return registration;
     }
 
-    // Fail fast: checks api-routes.xml against the controllers and resolves validators before the server starts
     @Bean
     public ApiRouteVerifier apiRouteVerifier(ApiRegistry apiRegistry, ApplicationContext applicationContext,
                                              ApiFlowProperties properties) {

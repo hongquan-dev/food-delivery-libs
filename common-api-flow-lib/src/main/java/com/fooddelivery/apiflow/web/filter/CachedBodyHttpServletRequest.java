@@ -14,7 +14,6 @@ import java.nio.charset.StandardCharsets;
 public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
     private final byte[] cachedBody;
 
-    // The body is read (with a size limit) by RequestCachingFilter and handed over here
     public CachedBodyHttpServletRequest(HttpServletRequest request, byte[] cachedBody) {
         super(request);
         this.cachedBody = cachedBody;

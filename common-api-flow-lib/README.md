@@ -114,7 +114,7 @@ File này **bắt buộc** phải có ở mọi service dùng lib. Thiếu file 
 | `<path>` | Có | Đường dẫn API, cùng cú pháp với `@GetMapping`/`@PostMapping` của Spring. Hỗ trợ biến (`{id}`, `{id:\d+}`) và wildcard (`*`, `**`). Nếu có cả `/orders/new` và `/orders/{id}` thì path cụ thể hơn được ưu tiên. |
 | `<schema>` | Không | Đường dẫn file JSON Schema trong `resources`. Để trống nếu không cần kiểm tra cấu trúc body. |
 | `<validator>` | Không | `<tên class đầy đủ>.<tên method>` của validator nghiệp vụ. Để trống nếu không cần. |
-| `<controller>` | Không | Tên controller, chỉ để ghi chú cho người đọc. Lib tự tìm controller theo method và path. |
+| `<controller>` | Có | Tên class controller, bắt buộc có giá trị không rỗng. Việc xác nhận controller mapping thực tế vẫn dựa trên method và path. |
 
 ### Bước 2: Viết JSON Schema trong `src/main/resources/schemas/`
 
@@ -277,17 +277,14 @@ Fix the routes above in 'api-routes.xml' (or the controllers/validators they poi
 |---|---|
 | `<method>` là method HTTP hợp lệ (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`, `TRACE`) | Không khởi động |
 | `<path>` không rỗng, bắt đầu bằng `/`, đúng cú pháp pattern | Không khởi động |
+| `<controller>` có giá trị không rỗng | Không khởi động |
 | Không có route trùng. `/items/{id}` và `/items/{itemId}` cùng method được coi là trùng | Không khởi động |
 | File `<schema>` tồn tại và là JSON object | Không khởi động |
 | Mỗi route có controller xử lý đúng method và path | Không khởi động |
 | `<validator>`: đúng định dạng `class.method`, class tồn tại, là Spring bean (đúng 1 bean), có method `public boolean tenHam(HttpServletRequest, String)` | Không khởi động |
-| Endpoint có trong controller nhưng **không** khai báo trong xml và không thuộc danh sách loại trừ | Chỉ **cảnh báo** trong log, vẫn khởi động |
+| Endpoint có trong controller nhưng **không** khai báo trong xml và không thuộc danh sách loại trừ | Không khởi động; endpoint bị thiếu được liệt kê trong lỗi cấu hình |
 
-Cảnh báo cho endpoint chưa khai báo có dạng:
-
-```
-WARN  ApiRouteVerifier - Controller endpoint [POST] /orders/{id} (OrderController#update) is not declared in api-routes.xml, its requests will get 404
-```
+Các endpoint thuộc danh sách `api-flow.exclude-paths` (cũng như các path hệ thống được loại trừ mặc định) không cần khai báo trong XML.
 
 Khởi động thành công thì log có dòng:
 
