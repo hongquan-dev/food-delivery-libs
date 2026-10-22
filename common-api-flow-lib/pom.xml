@@ -18,6 +18,11 @@
     <description>API request flow for Spring MVC microservices: route registration (api-routes.xml), JSON Schema check and dynamic validator invocation, auto-configured</description>
 
     <dependencies>
+        <!-- Shared response format (ApiResponse), error codes and exception handling -->
+        <dependency>
+            <groupId>com.fooddelivery</groupId>
+            <artifactId>common-web-lib</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
@@ -33,6 +38,11 @@
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-xml</artifactId>
+        </dependency>
+        <!-- ApiResponseWriter: serializes ApiResponse.timestamp (Instant) as ISO-8601 -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>

@@ -1,6 +1,7 @@
 package com.fooddelivery.apiflow.web.filter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fooddelivery.apiflow.exception.ApiFlowErrorCode;
+import com.fooddelivery.apiflow.web.response.ApiResponseWriter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,16 +13,15 @@ import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Map;
 
 public class RequestCachingFilter extends OncePerRequestFilter {
     private static final Logger log = LogManager.getLogger(RequestCachingFilter.class);
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-
     private final long maxBodySize;
+    private final ApiResponseWriter apiResponseWriter;
 
-    public RequestCachingFilter(long maxBodySize) {
+    public RequestCachingFilter(long maxBodySize, ApiResponseWriter apiResponseWriter) {
         this.maxBodySize = maxBodySize;
+        this.apiResponseWriter = apiResponseWriter;
     }
 
     @Override
@@ -49,9 +49,8 @@ public class RequestCachingFilter extends OncePerRequestFilter {
 
     private void rejectTooLarge(HttpServletRequest request, HttpServletResponse response) throws IOException {
         log.warn("Request body exceeds {} bytes: [{}] {}", maxBodySize, request.getMethod(), request.getRequestURI());
-        response.setContentType("application/json;charset=UTF-8");
-        response.setStatus(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
-        response.getWriter().write(objectMapper.writeValueAsString(Map.of("error", "Request body too large!")));
+        ApiFlowErrorCode error = ApiFlowErrorCode.PAYLOAD_TOO_LARGE;
+        apiResponseWriter.writeError(request, response, error.getStatus(), error.getCode(), error.getMessage());
     }
 
     private static boolean isJson(String contentType) {

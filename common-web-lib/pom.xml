@@ -15,9 +15,25 @@
     <packaging>jar</packaging>
 
     <name>Food Delivery :: Common Web Library</name>
-    <description>Standardized Web layer library providing uniform ApiResponse, GlobalExceptionHandler, and auto-configuration for Spring MVC microservices</description>
+    <description>Standard API response format (ApiResponse, ResponseHandler) for Spring MVC microservices</description>
 
     <dependencies>
+        <!-- ResponseEntity, HttpHeaders, HttpStatusCode -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+        <!-- @JsonInclude, @JsonPropertyOrder on ApiResponse -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+        <!-- ResponseHandler reads the current request path; provided by the servlet container of the service -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
 </project>

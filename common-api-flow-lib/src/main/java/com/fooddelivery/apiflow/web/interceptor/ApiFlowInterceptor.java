@@ -1,11 +1,12 @@
 package com.fooddelivery.apiflow.web.interceptor;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fooddelivery.apiflow.exception.ApiFlowErrorCode;
 import com.fooddelivery.apiflow.route.ApiRegistry;
 import com.fooddelivery.apiflow.route.RouteDefinition;
 import com.fooddelivery.apiflow.validation.ResolvedValidator;
 import com.fooddelivery.apiflow.validation.JsonSchemaUtil;
 import com.fooddelivery.apiflow.web.filter.CachedBodyHttpServletRequest;
+import com.fooddelivery.apiflow.web.response.ApiResponseWriter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
@@ -14,16 +15,15 @@ import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.util.WebUtils;
 
-import java.util.Map;
-
 public class ApiFlowInterceptor implements HandlerInterceptor {
     private static final Logger log = LogManager.getLogger(ApiFlowInterceptor.class);
-    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private final ApiRegistry apiRegistry;
+    private final ApiResponseWriter apiResponseWriter;
 
-    public ApiFlowInterceptor(ApiRegistry apiRegistry) {
+    public ApiFlowInterceptor(ApiRegistry apiRegistry, ApiResponseWriter apiResponseWriter) {
         this.apiRegistry = apiRegistry;
+        this.apiResponseWriter = apiResponseWriter;
     }
 
     @Override
@@ -33,15 +33,16 @@ public class ApiFlowInterceptor implements HandlerInterceptor {
 
         RouteDefinition route = apiRegistry.getRoute(method, path);
 
+        // Every rejection writes the error response directly, in the shared ApiResponse format
         if (route == null) {
             log.warn("API not declared in routes config: [{}] {}", method, path);
-            writeJson(response, HttpServletResponse.SC_NOT_FOUND, Map.of("error", "API not found in system configuration!"));
+            reject(request, response, ApiFlowErrorCode.API_NOT_FOUND);
             return false;
         }
 
         if (!(handler instanceof HandlerMethod)) {
             log.warn("No controller method mapped for declared API: [{}] {}", method, path);
-            writeJson(response, HttpServletResponse.SC_NOT_FOUND, Map.of("error", "API not found in controller!"));
+            reject(request, response, ApiFlowErrorCode.API_NOT_FOUND);
             return false;
         }
 
@@ -57,21 +58,21 @@ public class ApiFlowInterceptor implements HandlerInterceptor {
         }
 
         if (route.getSchema() != null && !JsonSchemaUtil.validate(route.getSchema(), requestBody)) {
-            writeJson(response, HttpServletResponse.SC_BAD_REQUEST, Map.of("error", "Invalid request body!"));
+            log.warn("Request body does not match schema {}: [{}] {}", route.getSchemaPath(), method, path);
+            reject(request, response, ApiFlowErrorCode.INVALID_REQUEST_BODY);
             return false;
         }
 
         if (hasValidator && !validator.validate(request, requestBody)) {
-            writeJson(response, HttpServletResponse.SC_BAD_REQUEST, Map.of("error", "Request data failed validation!"));
+            log.warn("Validator {} rejected the request: [{}] {}", route.getValidator(), method, path);
+            reject(request, response, ApiFlowErrorCode.REQUEST_VALIDATION_FAILED);
             return false;
         }
 
         return true;
     }
 
-    private void writeJson(HttpServletResponse response, int status, Object body) throws Exception {
-        response.setContentType("application/json;charset=UTF-8");
-        response.setStatus(status);
-        response.getWriter().write(objectMapper.writeValueAsString(body));
+    private void reject(HttpServletRequest request, HttpServletResponse response, ApiFlowErrorCode error) throws Exception {
+        apiResponseWriter.writeError(request, response, error.getStatus(), error.getCode(), error.getMessage());
     }
 }

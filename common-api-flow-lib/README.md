@@ -1,4 +1,4 @@
-# common-api-flow-lib
+Ở# common-api-flow-lib
 
 Thư viện xử lý luồng request API dùng chung cho các service Spring MVC. Lib giúp mỗi service:
 
@@ -57,7 +57,8 @@ com.fooddelivery.apiflow
 │   └── ApiFlowConfigFailureAnalyzer  In lỗi dạng "APPLICATION FAILED TO START"
 └── web/
     ├── filter/          RequestCachingFilter, CachedBodyHttpServletRequest (cache body JSON)
-    └── interceptor/     ApiFlowInterceptor (route → schema → validator)
+    ├── interceptor/     ApiFlowInterceptor (route → schema → validator)
+    └── response/        ApiResponseWriter (filter/interceptor ghi response lỗi theo format ApiResponse)
 ```
 
 ---
@@ -160,7 +161,7 @@ Lưu ý:
 Validator bắt buộc:
 - Là Spring bean (`@Component`), nằm trong package được scan (package con của class `@SpringBootApplication`).
 - Có method đúng chữ ký `public boolean tenHam(HttpServletRequest request, String requestBody)`.
-- Trả `true` nếu hợp lệ, `false` nếu không.
+- Trả `true` nếu hợp lệ, `false` nếu không. Khi trả `false`, lib trả về frontend 400 `REQUEST_VALIDATION_FAILED`.
 
 ```java
 @Component
@@ -181,7 +182,9 @@ public class OrderValidator {
 
 ```java
 @PostMapping("/orders/{id}/items")
-public ResponseEntity<?> addItem(@PathVariable Long id, @RequestBody AddOrderItemRequest request) { ... }
+public ResponseEntity<ApiResponse<OrderItemDto>> addItem(@PathVariable Long id, @RequestBody AddOrderItemRequest request) {
+    return ResponseHandler.generateResponse(ApiStatus.CREATED, ApiResponse.success(orderService.addItem(id, request)));
+}
 ```
 
 Controller đọc `@RequestBody` bình thường, vì body đã được cache lại.
@@ -236,19 +239,30 @@ Lưu ý:
 
 ## Response lỗi
 
-Mọi lỗi do lib trả về đều có dạng JSON `{"error": "..."}`:
+Mọi lỗi dùng format chung `ApiResponse` của [common-web-lib](../common-web-lib/README.md), ví dụ:
 
-| HTTP | Message | Nguyên nhân |
+```json
+{
+  "success": false,
+  "status": 400,
+  "code": "INVALID_REQUEST_BODY",
+  "message": "Request body does not match the expected structure",
+  "data": null,
+  "timestamp": "2026-10-22T10:00:00.123Z",
+  "path": "/orders/7/items"
+}
+```
+
+| HTTP | `code` | Nguyên nhân |
 |---|---|---|
-| 404 | `API not found in system configuration!` | Method + path không có trong `api-routes.xml`. |
-| 404 | `API not found in controller!` | Path có trong xml nhưng không có controller xử lý. |
-| 400 | `Invalid request body!` | Body không đúng schema: thiếu field, sai kiểu, thừa field, không phải JSON, body rỗng. |
-| 400 | `Request data failed validation!` | Validator trả `false`. |
-| 413 | `Request body too large!` | Body JSON vượt `api-flow.max-body-size`. |
+| 404 | `API_NOT_FOUND` | Method + path không có trong `api-routes.xml`, hoặc không có controller xử lý. |
+| 400 | `INVALID_REQUEST_BODY` | Body không đúng schema: thiếu field, sai kiểu, thừa field, không phải JSON, body rỗng. |
+| 400 | `REQUEST_VALIDATION_FAILED` | Validator trả `false`. |
+| 413 | `PAYLOAD_TOO_LARGE` | Body JSON vượt `api-flow.max-body-size`. |
 
-Lỗi 405 (sai method) và các lỗi khác do Spring tự trả theo format mặc định của Spring Boot.
+Các mã `PAYLOAD_TOO_LARGE`, `API_NOT_FOUND`, `INVALID_REQUEST_BODY`, `REQUEST_VALIDATION_FAILED` khai báo trong `ApiFlowErrorCode`.
 
-Exception do validator tự ném ra được chuyển nguyên vẹn cho Spring xử lý (mặc định là 500).
+Exception do validator ném ra không được lib bắt, Spring xử lý theo mặc định (500).
 
 ---
 

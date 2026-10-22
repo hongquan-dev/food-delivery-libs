@@ -8,8 +8,8 @@ Các thư viện dùng chung cho các microservice của dự án Food Delivery.
 |---|---|---|---|
 | [common-id-lib](common-id-lib/README.md) | Sinh và giải mã ID 14 chữ số theo thời gian | Không | Đang dùng |
 | [common-dto-lib](common-dto-lib/README.md) | Enum, DTO, model phân trang dùng chung | Không | Chưa có nội dung |
-| [common-web-lib](common-web-lib/README.md) | Format response và xử lý exception chung | Chưa | Chưa có nội dung |
-| [common-api-flow-lib](common-api-flow-lib/README.md) | Đăng ký API, check JSON Schema, gọi validator, giới hạn body | **Có** (`api-flow.*`) | Đang dùng |
+| [common-web-lib](common-web-lib/README.md) | Format response chung: `ApiResponse` (body), `ResponseHandler` (trả response), `ApiStatus` (status) | Không | Đang dùng |
+| [common-api-flow-lib](common-api-flow-lib/README.md) | Đăng ký API, check JSON Schema, gọi validator, giới hạn body. Phụ thuộc `common-web-lib` | **Có** (`api-flow.*`) | Đang dùng |
 
 Yêu cầu: Java 21, Maven, Spring Boot 3.3.2 (version của các dependency Spring được quản lý chung qua `spring-boot-dependencies` trong `pom.xml` gốc).
 
