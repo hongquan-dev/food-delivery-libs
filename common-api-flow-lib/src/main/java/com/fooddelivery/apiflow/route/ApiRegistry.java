@@ -104,7 +104,7 @@ public class ApiRegistry {
             }
 
             String validator = dto.getValidator() == null || dto.getValidator().isBlank() ? null : dto.getValidator().trim();
-            RouteDefinition route = new RouteDefinition(method, path, validator, schemaPath, schemaNode, controller);
+            RouteDefinition route = new RouteDefinition(method, path, pattern, validator, schemaPath, schemaNode, controller);
             allRoutes.add(route);
 
             if (pattern.hasPatternSyntax()) {

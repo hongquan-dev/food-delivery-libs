@@ -2,7 +2,7 @@ package com.fooddelivery.apiflow.route;
 
 import com.fooddelivery.apiflow.exception.ApiFlowConfigException;
 import com.fooddelivery.apiflow.validation.ResolvedValidator;
-import jakarta.servlet.http.HttpServletRequest;
+import com.fooddelivery.apiflow.validation.ValidationRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
@@ -94,10 +94,10 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
 
         Method method;
         try {
-            method = bean.getClass().getMethod(methodName, HttpServletRequest.class, String.class);
+            method = bean.getClass().getMethod(methodName, ValidationRequest.class);
         } catch (NoSuchMethodException e) {
             errors.add(label + ": validator method not found: public boolean " + methodName
-                    + "(HttpServletRequest request, String requestBody) in " + className);
+                    + "(ValidationRequest request) in " + className);
             return;
         }
         if (method.getReturnType() != boolean.class && method.getReturnType() != Boolean.class) {

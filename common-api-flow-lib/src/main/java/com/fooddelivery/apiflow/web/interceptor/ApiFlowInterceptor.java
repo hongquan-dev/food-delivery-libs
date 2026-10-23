@@ -5,6 +5,7 @@ import com.fooddelivery.apiflow.route.ApiRegistry;
 import com.fooddelivery.apiflow.route.RouteDefinition;
 import com.fooddelivery.apiflow.validation.ResolvedValidator;
 import com.fooddelivery.apiflow.validation.JsonSchemaUtil;
+import com.fooddelivery.apiflow.validation.ValidationRequest;
 import com.fooddelivery.apiflow.web.filter.CachedBodyHttpServletRequest;
 import com.fooddelivery.apiflow.web.response.ApiResponseWriter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,7 +14,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
-import org.springframework.web.util.WebUtils;
 
 public class ApiFlowInterceptor implements HandlerInterceptor {
     private static final Logger log = LogManager.getLogger(ApiFlowInterceptor.class);
@@ -51,10 +51,7 @@ public class ApiFlowInterceptor implements HandlerInterceptor {
 
         String requestBody = "";
         if (route.getSchema() != null || hasValidator) {
-            CachedBodyHttpServletRequest cachedRequest = WebUtils.getNativeRequest(request, CachedBodyHttpServletRequest.class);
-            if (cachedRequest != null) {
-                requestBody = cachedRequest.getBodyAsString();
-            }
+            requestBody = CachedBodyHttpServletRequest.readCachedBody(request);
         }
 
         if (route.getSchema() != null && !JsonSchemaUtil.validate(route.getSchema(), requestBody)) {
@@ -63,10 +60,15 @@ public class ApiFlowInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        if (hasValidator && !validator.validate(request, requestBody)) {
-            log.warn("Validator {} rejected the request: [{}] {}", route.getValidator(), method, path);
-            reject(request, response, ApiFlowErrorCode.REQUEST_VALIDATION_FAILED);
-            return false;
+        if (hasValidator) {
+            ValidationRequest validationRequest = new ValidationRequest(request, route.extractPathVariables(path), requestBody);
+            // Kept so a controller parameter of type ValidationRequest gets the same instance
+            request.setAttribute(ValidationRequest.ATTRIBUTE, validationRequest);
+            if (!validator.validate(validationRequest)) {
+                log.warn("Validator {} rejected the request: [{}] {}", route.getValidator(), method, path);
+                reject(request, response, ApiFlowErrorCode.REQUEST_VALIDATION_FAILED);
+                return false;
+            }
         }
 
         return true;

@@ -7,6 +7,7 @@ import com.fooddelivery.apiflow.route.ApiRegistry;
 import com.fooddelivery.apiflow.route.ApiRouteVerifier;
 import com.fooddelivery.apiflow.web.filter.RequestCachingFilter;
 import com.fooddelivery.apiflow.web.interceptor.ApiFlowInterceptor;
+import com.fooddelivery.apiflow.web.resolver.ValidationRequestArgumentResolver;
 import com.fooddelivery.apiflow.web.response.ApiResponseWriter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,6 +21,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -71,7 +73,8 @@ public class ApiFlowAutoConfiguration {
     }
 
     @Bean
-    public WebMvcConfigurer apiFlowWebMvcConfigurer(ApiFlowInterceptor apiFlowInterceptor, ApiFlowProperties properties) {
+    public WebMvcConfigurer apiFlowWebMvcConfigurer(ApiFlowInterceptor apiFlowInterceptor, ApiFlowProperties properties,
+                                                    ApiRegistry apiRegistry) {
         List<String> excludePaths = properties.resolveExcludePaths();
         log.info("API flow excluded paths: {}", excludePaths);
 
@@ -79,6 +82,11 @@ public class ApiFlowAutoConfiguration {
             @Override
             public void addInterceptors(InterceptorRegistry registry) {
                 registry.addInterceptor(apiFlowInterceptor).excludePathPatterns(excludePaths);
+            }
+
+            @Override
+            public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+                resolvers.add(new ValidationRequestArgumentResolver(apiRegistry));
             }
         };
     }
