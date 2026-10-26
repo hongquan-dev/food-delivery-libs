@@ -8,19 +8,17 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * The single response format of every API, for both success and error.
+ * The single JSON response format of every API, for both success and error.
  *
  * <pre>
- * { "success": true, "status": 200, "code": "SUCCESS", "message": "Success", "data": {...},
- *   "timestamp": "2026-10-22T10:00:00Z" }
- *
- * { "success": false, "status": 400, "code": "VALIDATION_ERROR", "message": "...", "data": null,
- *   "errors": [{ "field": "price", "message": "..." }],
- *   "timestamp": "...", "path": "/orders/7" }
+ * { "success": true, "status": 200, "code": "SUCCESS", "message": "Success", "data": {...}, "timestamp": "..." }
+ * { "success": false, "status": 400, "code": "BAD_REQUEST", "message": "...", "data": null,
+ *   "errors": [{ "field": "price", "message": "..." }], "timestamp": "...", "path": "/orders/7" }
  * </pre>
  *
- * {@code status} is the HTTP status of the response. It is filled in by ResponseHandler / ApiResponseWriter from the
- * ApiStatus passed to them, so it always matches the real HTTP status.
+ * Factories leave {@code status} null; {@code ResponseHandler} (or api-flow's {@code ApiResponseWriter}) fills it via
+ * {@link #withStatus} so it always matches the real HTTP status. {@code errors}, {@code meta} and {@code path} are
+ * omitted from the JSON when empty.
  */
 @JsonPropertyOrder({"success", "status", "code", "message", "data", "errors", "meta", "timestamp", "path"})
 public record ApiResponse<T>(
@@ -50,10 +48,12 @@ public record ApiResponse<T>(
         return success(null);
     }
 
+    // Paginated list: items in "data", pagination info in "meta"
     public static <T> ApiResponse<List<T>> page(List<T> items, PageMeta meta) {
         return new ApiResponse<>(true, null, SUCCESS_CODE, SUCCESS_MESSAGE, items, null, meta, Instant.now(), null);
     }
 
+    // Error body; controllers normally go through ResponseHandler.generateErrorResponse instead
     public static <T> ApiResponse<T> error(String code, String message, String path) {
         return error(code, message, null, path);
     }

@@ -15,6 +15,12 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+/**
+ * Core of the API flow, run before every controller call on non-excluded paths. Checks in order, stopping at the
+ * first failure: route declared and handled by a controller (404 {@code API_NOT_FOUND}), body matches the route's
+ * {@code <schema>} (400 {@code INVALID_REQUEST_BODY}), route's {@code <validator>} returns {@code true}
+ * (400 {@code REQUEST_VALIDATION_FAILED}). Rejected requests never reach the controller.
+ */
 public class ApiFlowInterceptor implements HandlerInterceptor {
     private static final Logger log = LogManager.getLogger(ApiFlowInterceptor.class);
 
@@ -26,6 +32,7 @@ public class ApiFlowInterceptor implements HandlerInterceptor {
         this.apiResponseWriter = apiResponseWriter;
     }
 
+    // Returns true to continue to the controller, false after writing an error response
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         String path = request.getRequestURI();
@@ -33,13 +40,13 @@ public class ApiFlowInterceptor implements HandlerInterceptor {
 
         RouteDefinition route = apiRegistry.getRoute(method, path);
 
-        // Every rejection writes the error response directly, in the shared ApiResponse format
         if (route == null) {
             log.warn("API not declared in routes config: [{}] {}", method, path);
             reject(request, response, ApiFlowErrorCode.API_NOT_FOUND);
             return false;
         }
 
+        // Not a controller method (e.g. the static resource handler that Spring falls back to)
         if (!(handler instanceof HandlerMethod)) {
             log.warn("No controller method mapped for declared API: [{}] {}", method, path);
             reject(request, response, ApiFlowErrorCode.API_NOT_FOUND);
@@ -49,6 +56,7 @@ public class ApiFlowInterceptor implements HandlerInterceptor {
         ResolvedValidator validator = route.getResolvedValidator();
         boolean hasValidator = validator != null;
 
+        // The body is only needed (and decoded) when a schema or a validator will look at it
         String requestBody = "";
         if (route.getSchema() != null || hasValidator) {
             requestBody = CachedBodyHttpServletRequest.readCachedBody(request);
@@ -62,8 +70,9 @@ public class ApiFlowInterceptor implements HandlerInterceptor {
 
         if (hasValidator) {
             ValidationRequest validationRequest = new ValidationRequest(request, route.extractPathVariables(path), requestBody);
-            // Kept so a controller parameter of type ValidationRequest gets the same instance
+            // Stored so that a controller parameter of type ValidationRequest receives this same instance
             request.setAttribute(ValidationRequest.ATTRIBUTE, validationRequest);
+            // Exceptions thrown by the validator propagate to Spring's exception handling
             if (!validator.validate(validationRequest)) {
                 log.warn("Validator {} rejected the request: [{}] {}", route.getValidator(), method, path);
                 reject(request, response, ApiFlowErrorCode.REQUEST_VALIDATION_FAILED);

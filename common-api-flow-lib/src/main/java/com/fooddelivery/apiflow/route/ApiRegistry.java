@@ -20,6 +20,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * In-memory registry of the routes declared in the routes file (default {@code classpath:api-routes.xml}). It is the
+ * service's allow list: a request whose method + path is not found here is rejected with 404.
+ *
+ * <p>The constructor validates every {@code <route>}, preloads its JSON Schema and throws all problems at once as an
+ * {@link ApiFlowConfigException}; checks that need the Spring context are left to {@link ApiRouteVerifier}.
+ * {@link #getRoute} tries exact paths first, then patterns from most to least specific ({@code @RequestMapping}
+ * syntax). Read-only after startup, so safe to share between request threads.
+ */
 public class ApiRegistry {
     private static final Logger log = LogManager.getLogger(ApiRegistry.class);
 
@@ -27,10 +36,13 @@ public class ApiRegistry {
 
     private static final List<String> HTTP_METHODS = List.of("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE");
 
+    // Key: "METHOD:/exact/path"
     private final Map<String, RouteDefinition> exactRoutes = new HashMap<>();
 
+    // Key: HTTP method. Each list is sorted from most to least specific pattern
     private final Map<String, List<PatternRoute>> patternRoutes = new HashMap<>();
 
+    // Every valid route in file order; used by ApiRouteVerifier
     private final List<RouteDefinition> allRoutes = new ArrayList<>();
 
     private final String apiRoutesLocation;
@@ -48,11 +60,13 @@ public class ApiRegistry {
             log.error("Failed to read API routes config file '{}': {}", apiRoutesLocation, e.getMessage(), e);
             throw new IllegalStateException("Unable to load API routes config: " + apiRoutesLocation, e);
         }
+        // An empty <routes/> is allowed; ApiRouteVerifier will then report every controller endpoint as undeclared
         if (config == null || config.getRoutes() == null) {
             return;
         }
 
         List<String> errors = new ArrayList<>();
+        // "METHOD:normalized path" -> path as written, to detect duplicates such as /items/{id} vs /items/{itemId}
         Map<String, String> declared = new HashMap<>();
 
         for (ApiConfigWrapper.RouteXmlDto dto : config.getRoutes()) {
@@ -60,6 +74,7 @@ public class ApiRegistry {
             String path = dto.getPath() == null ? "" : dto.getPath().trim();
             String label = "[" + method + "] " + path;
 
+            // Each check below records an error and skips the route, so one run reports every broken route
             if (!HTTP_METHODS.contains(method)) {
                 errors.add(label + ": invalid <method> '" + dto.getMethod() + "', expected one of " + HTTP_METHODS);
                 continue;
@@ -89,6 +104,7 @@ public class ApiRegistry {
                 continue;
             }
 
+            // <schema> is optional; an empty tag means "no body structure check"
             String schemaPath = dto.getSchema();
             JsonNode schemaNode = null;
             if (schemaPath != null && !schemaPath.trim().isEmpty()) {
@@ -103,6 +119,7 @@ public class ApiRegistry {
                 schemaPath = null;
             }
 
+            // <validator> is kept as text here; ApiRouteVerifier resolves it to a bean + method once the context is ready
             String validator = dto.getValidator() == null || dto.getValidator().isBlank() ? null : dto.getValidator().trim();
             RouteDefinition route = new RouteDefinition(method, path, pattern, validator, schemaPath, schemaNode, controller);
             allRoutes.add(route);
@@ -121,6 +138,13 @@ public class ApiRegistry {
         }
     }
 
+    /**
+     * Finds the route declared for a request.
+     *
+     * @param method HTTP method of the request (any case)
+     * @param path   request URI without query string, e.g. {@code /orders/7/items}
+     * @return the matching route, or {@code null} if the API is not declared
+     */
     public RouteDefinition getRoute(String method, String path) {
         String upperMethod = method.toUpperCase();
         RouteDefinition route = exactRoutes.get(upperMethod + ":" + path);
@@ -145,6 +169,9 @@ public class ApiRegistry {
         return apiRoutesLocation;
     }
 
+    // Replaces simple variables with "{}" so paths that differ only by variable name compare equal:
+    // /orders/{id} and /orders/{orderId} -> /orders/{}. Variables with a regex ({id:\d+}) and
+    // capture-all variables ({*rest}) are left as they are
     static String normalizePattern(String path) {
         return path.replaceAll("\\{(?!\\*)[^}:]+}", "{}");
     }

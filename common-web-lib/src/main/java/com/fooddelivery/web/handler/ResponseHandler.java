@@ -14,25 +14,22 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.util.List;
 
 /**
- * Returns a response from a controller in one call.
+ * The only way controllers should build their {@code ResponseEntity<ApiResponse<T>>} (never
+ * {@code ResponseEntity.ok(...)} directly), so every API answers in the same format.
  *
  * <pre>
- * // Success (2xx): body built with ApiResponse.success / ok / page
- * return ResponseHandler.generateResponse(ApiStatus.OK, ApiResponse.success(order));
- *
- * // Error (4xx / 5xx): the error body is built here, path taken from the current request
- * return ResponseHandler.generateErrorResponse(ApiStatus.NOT_FOUND, "Order 99 not found");           // code NOT_FOUND
- * return ResponseHandler.generateErrorResponse(ApiStatus.NOT_FOUND, "ORDER_NOT_FOUND", "Order 99 not found", null);
+ * return ResponseHandler.generateResponse(ApiStatus.OK, ApiResponse.success(order));             // 2xx
+ * return ResponseHandler.generateErrorResponse(ApiStatus.NOT_FOUND, "Order 99 not found");       // 4xx / 5xx
  * </pre>
  *
- * Each method only accepts its own kind of status, so a success body can never go out with an error status
- * and the other way round.
+ * Each method only accepts its own kind of status and throws {@link IllegalArgumentException} otherwise.
  */
 public final class ResponseHandler {
 
     private ResponseHandler() {}
 
     // ===== Success (2xx) =====
+    // body must come from ApiResponse.success / ok / page
 
     public static <T> ResponseEntity<ApiResponse<T>> generateResponse(ApiStatus status, ApiResponse<T> body) {
         return generateResponse(status, null, body);
@@ -55,7 +52,8 @@ public final class ResponseHandler {
     }
 
     // ===== Error (4xx / 5xx) =====
-    // code defaults to status.code() and message to status.reasonPhrase() when not given
+    // The error body is built here, with "path" taken from the current request.
+    // code defaults to status.code() and message to status.reasonPhrase() when null or blank
 
     public static <T> ResponseEntity<ApiResponse<T>> generateErrorResponse(ApiStatus status) {
         return generateErrorResponse(status, null, null, null, null);

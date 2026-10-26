@@ -12,6 +12,11 @@ import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * Request wrapper, created by {@link RequestCachingFilter}, that keeps the body in memory so it can be read more than
+ * once: every {@link #getInputStream()}/{@link #getReader()} call returns a fresh stream over the same bytes, so
+ * {@code @RequestBody} still works after the API flow has read the body.
+ */
 public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
     private final byte[] cachedBody;
 
@@ -20,16 +25,19 @@ public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
         this.cachedBody = cachedBody;
     }
 
+    // Body decoded with the request charset (UTF-8 if none is given)
     public String getBodyAsString() {
         return new String(cachedBody, getCharset());
     }
 
-    // Body cached by RequestCachingFilter, "" if the request has no JSON body
+    // Body cached by RequestCachingFilter, "" if the request has no JSON body (the filter skipped it).
+    // Works even if other wrappers were added on top of this one
     public static String readCachedBody(HttpServletRequest request) {
         CachedBodyHttpServletRequest cachedRequest = WebUtils.getNativeRequest(request, CachedBodyHttpServletRequest.class);
         return cachedRequest == null ? "" : cachedRequest.getBodyAsString();
     }
 
+    // New blocking stream over the cached bytes on every call. Async (non-blocking) reading is not supported
     @Override
     public ServletInputStream getInputStream() {
         ByteArrayInputStream inputStream = new ByteArrayInputStream(cachedBody);

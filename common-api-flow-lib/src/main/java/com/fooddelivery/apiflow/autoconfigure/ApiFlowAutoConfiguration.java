@@ -27,14 +27,24 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.List;
 
-// After JacksonAutoConfiguration, so ApiResponseWriter uses Spring Boot's ObjectMapper
+/**
+ * Entry point of the library: wires every bean of the API flow. Registered in
+ * {@code META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports}, so services only add the
+ * dependency. Servlet (Spring MVC) applications only.
+ *
+ * <p>Request pipeline: {@link RequestCachingFilter} (caches JSON body, size limit) -> {@link ApiFlowInterceptor}
+ * (route lookup, JSON Schema, business validator; skipped on excluded paths) -> controller, which may take a
+ * {@code ValidationRequest} parameter via {@link ValidationRequestArgumentResolver}. At startup, {@link ApiRegistry}
+ * loads the routes file and {@link ApiRouteVerifier} cross-checks it against the controllers.
+ */
 @AutoConfiguration(after = JacksonAutoConfiguration.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @EnableConfigurationProperties(ApiFlowProperties.class)
 public class ApiFlowAutoConfiguration {
     private static final Logger log = LogManager.getLogger(ApiFlowAutoConfiguration.class);
 
-    // Writes error responses from the filter and the interceptor with the same JSON settings as controllers
+    // Used by the filter and the interceptor to write error responses with the same JSON settings as controllers.
+    // Falls back to a standalone mapper (ISO dates) if the application has no ObjectMapper bean
     @Bean
     @ConditionalOnMissingBean
     public ApiResponseWriter apiResponseWriter(ObjectProvider<ObjectMapper> objectMapper) {
@@ -44,12 +54,15 @@ public class ApiFlowAutoConfiguration {
                 .build()));
     }
 
+    // Loads and validates api-routes.xml when the bean is created (fails fast on a broken file)
     @Bean
     @ConditionalOnMissingBean
     public ApiRegistry apiRegistry(ApiFlowProperties properties) {
         return new ApiRegistry(properties.getRoutesLocation());
     }
 
+    // Runs very early in the filter chain so the body is cached before any other filter reads it.
+    // A service can replace it by declaring its own bean named "requestCachingFilter"
     @Bean
     @ConditionalOnMissingBean(name = "requestCachingFilter")
     public FilterRegistrationBean<RequestCachingFilter> requestCachingFilter(ApiFlowProperties properties,
@@ -60,6 +73,7 @@ public class ApiFlowAutoConfiguration {
         return registration;
     }
 
+    // Startup check: routes <-> controller mappings, and resolution of every <validator>
     @Bean
     public ApiRouteVerifier apiRouteVerifier(ApiRegistry apiRegistry, ApplicationContext applicationContext,
                                              ApiFlowProperties properties) {
@@ -72,6 +86,7 @@ public class ApiFlowAutoConfiguration {
         return new ApiFlowInterceptor(apiRegistry, apiResponseWriter);
     }
 
+    // Registers the interceptor (on every path except the excluded ones) and the ValidationRequest argument resolver
     @Bean
     public WebMvcConfigurer apiFlowWebMvcConfigurer(ApiFlowInterceptor apiFlowInterceptor, ApiFlowProperties properties,
                                                     ApiRegistry apiRegistry) {

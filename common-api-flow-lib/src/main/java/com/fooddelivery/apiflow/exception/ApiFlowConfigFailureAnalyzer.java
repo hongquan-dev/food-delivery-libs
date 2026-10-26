@@ -3,6 +3,12 @@ package com.fooddelivery.apiflow.exception;
 import org.springframework.boot.diagnostics.AbstractFailureAnalyzer;
 import org.springframework.boot.diagnostics.FailureAnalysis;
 
+/**
+ * Turns an {@link ApiFlowConfigException} into Spring Boot's "APPLICATION FAILED TO START" report
+ * (Description + Action), instead of a long stack trace.
+ *
+ * <p>Registered in {@code META-INF/spring.factories} under {@code org.springframework.boot.diagnostics.FailureAnalyzer}.
+ */
 public class ApiFlowConfigFailureAnalyzer extends AbstractFailureAnalyzer<ApiFlowConfigException> {
 
     @Override

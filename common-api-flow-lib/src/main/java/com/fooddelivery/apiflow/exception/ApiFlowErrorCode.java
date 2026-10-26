@@ -2,7 +2,17 @@ package com.fooddelivery.apiflow.exception;
 
 import com.fooddelivery.web.status.ApiStatus;
 
-// Errors returned by the API flow (body size limit, route lookup, JSON Schema check, validator)
+/**
+ * Errors the API flow returns to the client at request time, as an {@code ApiResponse} (see common-web-lib).
+ * The enum name is sent as the {@code code} field of the response.
+ *
+ * <ul>
+ *   <li>{@link #PAYLOAD_TOO_LARGE} (413): JSON body larger than {@code api-flow.max-body-size}; RequestCachingFilter.</li>
+ *   <li>{@link #API_NOT_FOUND} (404): method + path not declared in api-routes.xml, or no controller handles it.</li>
+ *   <li>{@link #INVALID_REQUEST_BODY} (400): body missing, not JSON, or not matching the route's JSON Schema.</li>
+ *   <li>{@link #REQUEST_VALIDATION_FAILED} (400): the route's business validator returned {@code false}.</li>
+ * </ul>
+ */
 public enum ApiFlowErrorCode {
     PAYLOAD_TOO_LARGE(ApiStatus.PAYLOAD_TOO_LARGE, "Request body too large"),
     API_NOT_FOUND(ApiStatus.NOT_FOUND, "API not found"),

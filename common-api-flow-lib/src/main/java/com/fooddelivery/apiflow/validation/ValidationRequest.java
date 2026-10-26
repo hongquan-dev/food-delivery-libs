@@ -14,10 +14,15 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Map;
 
-// Everything about one request: path variables, query parameters, headers and body.
-// Passed to validators, and can also be declared as a controller method parameter
+/**
+ * Read-only view of one HTTP request (path variables, query parameters, headers, body). It is the argument of every
+ * business validator ({@code public boolean name(ValidationRequest)}) and can also be a controller parameter.
+ *
+ * <p>One instance per request, shared through the request attribute {@link #ATTRIBUTE}. Single-value getters return
+ * {@code null} when absent and never throw. Not thread-safe.
+ */
 public class ValidationRequest {
-    // Request attribute holding the instance built for the validator, reused by the controller
+    // Request attribute key under which the instance for the current request is stored
     public static final String ATTRIBUTE = ValidationRequest.class.getName();
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -28,9 +33,15 @@ public class ValidationRequest {
     private final HttpHeaders headers;
     private final String body;
 
+    // Lazily parsed body; bodyJsonParsed tells "not parsed yet" apart from "parsed, result is null"
     private JsonNode bodyJson;
     private boolean bodyJsonParsed;
 
+    /**
+     * @param servletRequest the current request
+     * @param pathVariables  variable name -> value, already extracted from the path (URL-decoded)
+     * @param body           raw body cached by {@code RequestCachingFilter}; {@code null} is treated as {@code ""}
+     */
     public ValidationRequest(HttpServletRequest servletRequest, Map<String, String> pathVariables, String body) {
         this.servletRequest = servletRequest;
         this.pathVariables = Collections.unmodifiableMap(pathVariables);
@@ -39,28 +50,31 @@ public class ValidationRequest {
         this.body = body == null ? "" : body;
     }
 
+    // HTTP method, e.g. "POST"
     public String getMethod() { return servletRequest.getMethod(); }
 
+    // Request URI without the query string, e.g. "/orders/7/items"
     public String getPath() { return servletRequest.getRequestURI(); }
 
-    // Variables in <path> of api-routes.xml, e.g. /orders/{id} -> "id". Values are URL-decoded
+    // Variables of <path> in api-routes.xml, e.g. /orders/{id} -> "id". Values are URL-decoded
     public Map<String, String> getPathVariables() { return pathVariables; }
 
     public String getPathVariable(String name) { return pathVariables.get(name); }
 
-    // Query string parameters, e.g. ?status=NEW&status=PAID -> "status" = [NEW, PAID]. Values are URL-decoded
+    // Request parameters, e.g. ?status=NEW&status=PAID -> "status" = [NEW, PAID]. Values are URL-decoded.
+    // Read from the servlet parameter map, so form fields of an x-www-form-urlencoded body are included too
     public MultiValueMap<String, String> getQueryParams() { return queryParams; }
 
     // First value of the parameter, null if absent
     public String getQueryParam(String name) { return queryParams.getFirst(name); }
 
-    // Header names are case-insensitive
+    // All headers; names are case-insensitive
     public HttpHeaders getHeaders() { return headers; }
 
     // First value of the header, null if absent
     public String getHeader(String name) { return headers.getFirst(name); }
 
-    // Raw body, "" if the request has no JSON body
+    // Raw body, "" if the request has no JSON body (only JSON bodies are cached by RequestCachingFilter)
     public String getBody() { return body; }
 
     // Body parsed as JSON, null if the body is empty or not valid JSON. Parsed once, on first call
@@ -81,6 +95,7 @@ public class ValidationRequest {
     // Underlying request, for anything not covered above (cookies, remote address, attributes...)
     public HttpServletRequest getServletRequest() { return servletRequest; }
 
+    // Copied into an unmodifiable map so validators cannot change what the controller will see
     private static MultiValueMap<String, String> readQueryParams(HttpServletRequest request) {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         request.getParameterMap().forEach((name, values) -> params.put(name, Arrays.asList(values)));

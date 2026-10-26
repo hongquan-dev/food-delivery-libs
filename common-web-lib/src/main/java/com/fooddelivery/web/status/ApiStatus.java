@@ -1,7 +1,10 @@
 package com.fooddelivery.web.status;
 
-// HTTP statuses used by the APIs of the project, passed to ResponseHandler.
-// code: default value of the "code" field in the response body for this status
+/**
+ * HTTP statuses allowed for the project's APIs, used instead of Spring's {@code HttpStatus} when calling
+ * {@code ResponseHandler}. Each status also carries the default {@code code} and {@code message} of an error body
+ * when the caller gives none.
+ */
 public enum ApiStatus {
 
     // 2xx: success
@@ -27,8 +30,11 @@ public enum ApiStatus {
     SERVICE_UNAVAILABLE(503, "Service Unavailable", "SERVICE_UNAVAILABLE"),
     GATEWAY_TIMEOUT(504, "Gateway Timeout", "GATEWAY_TIMEOUT");
 
+    // HTTP status number
     private final int value;
+    // Default "message" of an error body
     private final String reasonPhrase;
+    // Default "code" field of the response body
     private final String code;
 
     ApiStatus(int value, String reasonPhrase, String code) {
@@ -43,5 +49,6 @@ public enum ApiStatus {
 
     public String code() { return code; }
 
+    // 2xx; decides whether ResponseHandler.generateResponse or generateErrorResponse accepts this status
     public boolean isSuccess() { return value >= 200 && value < 300; }
 }

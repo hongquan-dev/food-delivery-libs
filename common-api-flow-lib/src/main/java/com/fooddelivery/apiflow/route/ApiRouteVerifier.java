@@ -24,6 +24,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Startup check, run once after all singletons are created, that keeps api-routes.xml and the controllers in sync:
+ * every route must map to a controller method, every application endpoint must be declared or excluded, and every
+ * {@code <validator>} must resolve to a bean method {@code public boolean name(ValidationRequest)}, which is then
+ * cached on the route as a {@link ResolvedValidator}.
+ *
+ * <p>All problems are thrown together as one {@link ApiFlowConfigException}. Paths are compared after
+ * {@link ApiRegistry#normalizePattern}, so {@code /orders/{id}} matches {@code @GetMapping("/orders/{orderId}")}.
+ */
 public class ApiRouteVerifier implements SmartInitializingSingleton {
     private static final Logger log = LogManager.getLogger(ApiRouteVerifier.class);
 
@@ -39,6 +48,7 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
 
     @Override
     public void afterSingletonsInstantiated() {
+        // All @RequestMapping endpoints known to Spring MVC
         Map<RequestMappingInfo, HandlerMethod> handlerMethods = applicationContext
                 .getBean("requestMappingHandlerMapping", RequestMappingHandlerMapping.class)
                 .getHandlerMethods();
@@ -63,6 +73,8 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
         log.info("API flow: {} routes verified against controllers", apiRegistry.getRoutes().size());
     }
 
+    // Turns "com.example.FooValidator.validateBar" into a callable bean + method and stores it on the route.
+    // Any problem is added to errors instead of thrown, so all routes are checked in one run
     private void resolveValidator(RouteDefinition route, String label, List<String> errors) {
         String config = route.getValidator();
         int lastDotIndex = config.lastIndexOf('.');
@@ -81,6 +93,7 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
             return;
         }
 
+        // The validator must be exactly one Spring bean, so it can use injected services (repositories, clients...)
         Object bean;
         try {
             bean = applicationContext.getBean(clazz);
@@ -92,6 +105,7 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
             return;
         }
 
+        // Looked up on the bean's runtime class, which may be a proxy subclass (e.g. @Transactional, AOP)
         Method method;
         try {
             method = bean.getClass().getMethod(methodName, ValidationRequest.class);
@@ -108,6 +122,7 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
         route.setResolvedValidator(new ResolvedValidator(bean, method));
     }
 
+    // Declared route -> controller: is there a mapping with a compatible HTTP method and the same (normalized) path?
     private boolean hasControllerMapping(RouteDefinition route, Map<RequestMappingInfo, HandlerMethod> handlerMethods) {
         String normalizedPath = ApiRegistry.normalizePattern(route.getPath());
         for (RequestMappingInfo info : handlerMethods.keySet()) {
@@ -119,6 +134,7 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
         return false;
     }
 
+    // Controller -> declared route: reports every application endpoint that is neither declared nor excluded
     private void collectUndeclaredEndpointErrors(Map<RequestMappingInfo, HandlerMethod> handlerMethods,
                                                  List<String> errors) {
         handlerMethods.forEach((info, handlerMethod) -> {
@@ -138,6 +154,7 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
         });
     }
 
+    // A mapping without an HTTP method (plain @RequestMapping) accepts any method, so one declared route is enough
     private boolean isDeclared(String pattern, Set<RequestMethod> methods) {
         String normalizedPattern = ApiRegistry.normalizePattern(pattern);
         return apiRegistry.getRoutes().stream().anyMatch(route ->
@@ -150,11 +167,13 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
         return excludePatterns.stream().anyMatch(exclude -> exclude.matches(path));
     }
 
+    // Skips framework controllers (e.g. Spring Boot's BasicErrorController, springdoc's OpenAPI endpoints)
     private static boolean isApplicationController(HandlerMethod handlerMethod) {
         String packageName = handlerMethod.getBeanType().getPackageName();
         return !packageName.startsWith("org.springframework.") && !packageName.startsWith("org.springdoc.");
     }
 
+    // A HEAD route is served by a GET mapping, as Spring MVC handles HEAD implicitly for GET endpoints
     private static boolean supportsMethod(RequestMappingInfo info, String method) {
         Set<RequestMethod> methods = info.getMethodsCondition().getMethods();
         return methods.isEmpty()
