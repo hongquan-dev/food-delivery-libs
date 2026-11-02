@@ -22,19 +22,29 @@ import java.util.List;
  * return ResponseHandler.generateErrorResponse(ApiStatus.NOT_FOUND, "Order 99 not found");       // 4xx / 5xx
  * </pre>
  *
- * Each method only accepts its own kind of status and throws {@link IllegalArgumentException} otherwise.
+ * <p>Each method only accepts its own kind of status and throws {@link IllegalArgumentException} otherwise. The
+ * {@code status} of the body is always set to the HTTP status of the response.
  */
 public final class ResponseHandler {
 
     private ResponseHandler() {}
 
-    // ===== Success (2xx) =====
-    // body must come from ApiResponse.success / ok / page
-
+    // Success response without extra headers
     public static <T> ResponseEntity<ApiResponse<T>> generateResponse(ApiStatus status, ApiResponse<T> body) {
         return generateResponse(status, null, body);
     }
 
+    /**
+     * Builds a success response.
+     *
+     * @param status  a 2xx status
+     * @param headers extra response headers, {@code null} if none
+     * @param body    a success body, from {@link ApiResponse#success}, {@link ApiResponse#ok} or
+     *                {@link ApiResponse#page}
+     * @return the response, with the body's {@code status} set to {@code status}
+     * @throws IllegalArgumentException if {@code status} is {@code null} or not 2xx, or {@code body} is {@code null}
+     *                                  or an error body
+     */
     public static <T> ResponseEntity<ApiResponse<T>> generateResponse(ApiStatus status, HttpHeaders headers,
                                                                      ApiResponse<T> body) {
         if (status == null) {
@@ -51,14 +61,12 @@ public final class ResponseHandler {
         return build(status, headers, body);
     }
 
-    // ===== Error (4xx / 5xx) =====
-    // The error body is built here, with "path" taken from the current request.
-    // code defaults to status.code() and message to status.reasonPhrase() when null or blank
-
+    // Error with the status' default code and message
     public static <T> ResponseEntity<ApiResponse<T>> generateErrorResponse(ApiStatus status) {
         return generateErrorResponse(status, null, null, null, null);
     }
 
+    // Error with the status' default code and a custom message
     public static <T> ResponseEntity<ApiResponse<T>> generateErrorResponse(ApiStatus status, String message) {
         return generateErrorResponse(status, null, null, message, null);
     }
@@ -68,6 +76,7 @@ public final class ResponseHandler {
         return generateErrorResponse(status, null, null, null, errors);
     }
 
+    // Field errors with a custom message
     public static <T> ResponseEntity<ApiResponse<T>> generateErrorResponse(ApiStatus status, String message,
                                                                           List<FieldErrorDetail> errors) {
         return generateErrorResponse(status, null, null, message, errors);
@@ -79,6 +88,19 @@ public final class ResponseHandler {
         return generateErrorResponse(status, null, code, message, errors);
     }
 
+    /**
+     * Builds an error response. The error body is built here, with {@code path} taken from the current request
+     * ({@code null} when called outside an HTTP request).
+     *
+     * @param status  a 4xx or 5xx status
+     * @param headers extra response headers, {@code null} if none
+     * @param code    business error code, e.g. {@code ORDER_NOT_FOUND}; {@link ApiStatus#code()} if {@code null}
+     *                or blank
+     * @param message message for the client; {@link ApiStatus#reasonPhrase()} if {@code null} or blank
+     * @param errors  per-field errors, {@code null} or empty if none (then omitted from the JSON)
+     * @return the response, with the body's {@code status} set to {@code status}
+     * @throws IllegalArgumentException if {@code status} is {@code null} or 2xx
+     */
     public static <T> ResponseEntity<ApiResponse<T>> generateErrorResponse(ApiStatus status, HttpHeaders headers,
                                                                           String code, String message,
                                                                           List<FieldErrorDetail> errors) {
@@ -94,14 +116,12 @@ public final class ResponseHandler {
         return build(status, headers, ApiResponse.error(finalCode, finalMessage, errors, currentRequestPath()));
     }
 
-    // ===== Internal =====
-
     // The body carries the same status as the HTTP response
     private static <T> ResponseEntity<ApiResponse<T>> build(ApiStatus status, HttpHeaders headers, ApiResponse<T> body) {
         return new ResponseEntity<>(body.withStatus(status), headers, HttpStatusCode.valueOf(status.value()));
     }
 
-    // Path of the request being handled, or null when called outside an HTTP request
+    // Path of the request being handled, e.g. "/orders/7", or null when called outside an HTTP request
     private static String currentRequestPath() {
         RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
         if (attributes instanceof ServletRequestAttributes servletAttributes) {

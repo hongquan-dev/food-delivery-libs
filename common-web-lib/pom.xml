@@ -28,6 +28,16 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
         </dependency>
+        <!-- CommonWebAutoConfiguration registers GlobalExceptionHandler in every Spring Boot service -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <!-- GlobalExceptionHandler logs errors through the services' Log4j2 -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+        </dependency>
         <!-- ResponseHandler reads the current request path; provided by the servlet container of the service -->
         <dependency>
             <groupId>jakarta.servlet</groupId>

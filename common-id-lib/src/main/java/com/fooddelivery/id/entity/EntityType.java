@@ -38,7 +38,13 @@ public enum EntityType {
         return vietnameseName;
     }
 
-    // Type for an ID digit; throws IllegalArgumentException if no type has this code
+    /**
+     * Finds the type stored in an ID digit.
+     *
+     * @param code type code, e.g. {@code 4}
+     * @return the matching type, e.g. {@link #ORDER}
+     * @throws IllegalArgumentException if no type has this code
+     */
     public static EntityType fromCode(int code) {
         for (EntityType type : EntityType.values()) {
             if (type.code == code) {
@@ -48,8 +54,13 @@ public enum EntityType {
         throw new IllegalArgumentException("Invalid entity type code: " + code);
     }
 
-    // Accepts the enum name, the English or the Vietnamese name, case-insensitive and trimmed, e.g. "order" or
-    // "Đơn hàng" -> ORDER. Throws IllegalArgumentException if blank or unknown
+    /**
+     * Finds a type by name. Accepts the enum name, the English or the Vietnamese name, case-insensitive and trimmed.
+     *
+     * @param name e.g. {@code "ORDER"}, {@code "order"} or {@code "Đơn hàng"}
+     * @return the matching type, e.g. {@link #ORDER}
+     * @throws IllegalArgumentException if {@code name} is {@code null}, blank or unknown
+     */
     public static EntityType fromName(String name) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Entity type name cannot be null or blank");

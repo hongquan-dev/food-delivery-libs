@@ -16,11 +16,16 @@ return ResponseHandler.generateErrorResponse(status, code, message, errors);    
 return ResponseHandler.generateErrorResponse(status, headers, code, message, errors);  // kèm header
 ```
 
+Ngoài cách tự trả lỗi ở trên, có thể **ném lỗi** và để `GlobalExceptionHandler` trả về cho client (xem mục [Trả lỗi bằng cách ném exception](#trả-lỗi-bằng-cách-ném-exception)). Hai cách dùng song song được.
+
 ```
 com.fooddelivery.web
-├── handler/   ResponseHandler                         trả response: generateResponse, generateErrorResponse
-├── model/     ApiResponse, FieldErrorDetail, PageMeta  cấu trúc body
-└── status/    ApiStatus                               mã HTTP, kèm code và message mặc định
+├── handler/        ResponseHandler                         trả response: generateResponse, generateErrorResponse
+├── model/          ApiResponse, FieldErrorDetail, PageMeta  cấu trúc body
+├── status/         ApiStatus                               mã HTTP, kèm code và message mặc định
+├── exception/      BusinessException                       lỗi nghiệp vụ, tự ném khi dữ liệu sai quy tắc
+│                   GlobalExceptionHandler                  bắt mọi exception, trả về format ApiResponse
+└── autoconfigure/  CommonWebAutoConfiguration              tự đăng ký GlobalExceptionHandler cho mọi service
 ```
 
 ```java
@@ -295,3 +300,57 @@ return ResponseHandler.generateErrorResponse(ApiStatus.TOO_MANY_REQUESTS, header
 { "success": false, "status": 429, "code": "TOO_MANY_REQUESTS", "message": "Too many requests, try again in 30 seconds",
   "data": null, "timestamp": "...", "path": "/orders" }
 ```
+
+---
+
+## Trả lỗi bằng cách ném exception
+
+Mọi service có dependency tới lib này đều **tự có** `GlobalExceptionHandler`, không cần cấu hình gì. Controller chỉ viết trường hợp thành công, không cần `try/catch`. Lỗi ném ra từ controller, service hay validator của api-flow đều được bắt và trả về đúng format `ApiResponse`.
+
+| Loại lỗi | Ai ném | Client nhận |
+|---|---|---|
+| Lỗi nghiệp vụ: `BusinessException` | **Tự ném** khi dữ liệu sai quy tắc | Đúng status, code, message, errors đã truyền vào |
+| Lỗi của Spring có sẵn status: sai method, sai Content-Type, body không đọc được, sai kiểu tham số... | Spring | Status tương ứng (405, 415, 400...), code và message mặc định |
+| Mọi lỗi khác: bug, `NullPointerException`, lỗi DB... | Java / thư viện | 500 `INTERNAL_ERROR` `"Internal Server Error"`, chi tiết chỉ ghi vào log |
+
+### Ném lỗi nghiệp vụ
+
+```java
+import com.fooddelivery.web.exception.BusinessException;
+
+throw new BusinessException(ApiStatus.NOT_FOUND, "Order 99 not found");                       // code mặc định NOT_FOUND
+throw new BusinessException(ApiStatus.NOT_FOUND, "ORDER_NOT_FOUND", "Order 99 not found");    // code riêng
+throw BusinessException.ofField(ApiStatus.BAD_REQUEST, "INVALID_PAGE", "page", "page must not be 1");  // lỗi 1 field
+throw new BusinessException(ApiStatus.BAD_REQUEST, "INVALID_ORDER", "Invalid order", List.of(       // nhiều field
+        new FieldErrorDetail("quantity", "must be greater than 0"),
+        new FieldErrorDetail("address", "must not be blank")));
+```
+
+```json
+// 400, từ BusinessException.ofField(...)
+{ "success": false, "status": 400, "code": "INVALID_PAGE", "message": "page must not be 1", "data": null,
+  "errors": [{ "field": "page", "message": "page must not be 1" }], "timestamp": "...", "path": "/orders" }
+```
+
+- `BusinessException` là unchecked exception: không cần khai báo `throws`, và tự rollback `@Transactional`.
+- Chỉ nhận status lỗi (4xx, 5xx), truyền 2xx sẽ báo `IllegalArgumentException`.
+- Ném từ **validator của api-flow** cũng được: client nhận đúng lỗi chi tiết thay vì `REQUEST_VALIDATION_FAILED` chung chung.
+
+### Controller khi dùng cách này
+
+```java
+@GetMapping("/orders/{id}")
+public ResponseEntity<ApiResponse<OrderDto>> getOrder(@PathVariable Long id) {
+    OrderDto order = orderService.findById(id);   // service tự ném BusinessException(NOT_FOUND, ...) nếu không có
+    return ResponseHandler.generateResponse(ApiStatus.OK, ApiResponse.success(order));
+}
+```
+
+- Chỉ dùng `try/catch` khi muốn **xử lý lỗi tại chỗ**: có phương án dự phòng, thử lại, hoặc đổi lỗi kỹ thuật thành `BusinessException` (vd. duplicate key của DB thành 409). Bắt rồi không xử lý gì thì đừng bắt.
+- Controller tự `catch (Exception e)` rồi tự trả lỗi thì lỗi đó **không** đi qua `GlobalExceptionHandler`.
+- Log: lỗi 4xx ghi mức `WARN` (không kèm stack trace), lỗi 5xx ghi mức `ERROR` kèm stack trace.
+
+### Tuỳ biến
+
+- Service tự viết `@RestControllerAdvice` riêng thì handler của service được ưu tiên với các exception nó xử lý (`GlobalExceptionHandler` có độ ưu tiên thấp nhất).
+- Muốn thay hẳn: khai báo một bean `GlobalExceptionHandler` (vd. class con), lib sẽ không tạo bean mặc định nữa.

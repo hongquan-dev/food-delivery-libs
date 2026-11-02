@@ -16,9 +16,19 @@ import java.util.List;
  *   "errors": [{ "field": "price", "message": "..." }], "timestamp": "...", "path": "/orders/7" }
  * </pre>
  *
- * Factories leave {@code status} null; {@code ResponseHandler} (or api-flow's {@code ApiResponseWriter}) fills it via
- * {@link #withStatus} so it always matches the real HTTP status. {@code errors}, {@code meta} and {@code path} are
- * omitted from the JSON when empty.
+ * <p>Factories leave {@code status} {@code null}; {@code ResponseHandler} (or api-flow's {@code ApiResponseWriter})
+ * fills it via {@link #withStatus} so it always matches the real HTTP status. {@code meta} and {@code path} are omitted
+ * from the JSON when {@code null}, {@code errors} also when empty. Immutable.
+ *
+ * @param success   {@code true} for a 2xx response, {@code false} for an error
+ * @param status    HTTP status of the response, {@code null} until {@link #withStatus} is called
+ * @param code      {@code SUCCESS} on success, otherwise an error code, e.g. {@code NOT_FOUND}
+ * @param message   human-readable message for the client
+ * @param data      result of the API, {@code null} for errors and for {@link #ok()}
+ * @param errors    per-field errors of an error response, {@code null} if none
+ * @param meta      pagination info, set only by {@link #page}
+ * @param timestamp when the body was created
+ * @param path      request URI of an error response, {@code null} on success or outside an HTTP request
  */
 @JsonPropertyOrder({"success", "status", "code", "message", "data", "errors", "meta", "timestamp", "path"})
 public record ApiResponse<T>(
@@ -35,10 +45,12 @@ public record ApiResponse<T>(
     public static final String SUCCESS_CODE = "SUCCESS";
     public static final String SUCCESS_MESSAGE = "Success";
 
+    // Success body with the default message "Success"
     public static <T> ApiResponse<T> success(T data) {
         return success(data, SUCCESS_MESSAGE);
     }
 
+    // Success body with a custom message, e.g. "Order created"
     public static <T> ApiResponse<T> success(T data, String message) {
         return new ApiResponse<>(true, null, SUCCESS_CODE, message, data, null, null, Instant.now(), null);
     }
@@ -58,6 +70,7 @@ public record ApiResponse<T>(
         return error(code, message, null, path);
     }
 
+    // Error body with per-field errors; errors may be null or empty
     public static <T> ApiResponse<T> error(String code, String message, List<FieldErrorDetail> errors, String path) {
         return new ApiResponse<>(false, null, code, message, null, errors, null, Instant.now(), path);
     }

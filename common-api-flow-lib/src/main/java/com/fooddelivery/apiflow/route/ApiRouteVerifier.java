@@ -1,8 +1,8 @@
 package com.fooddelivery.apiflow.route;
 
 import com.fooddelivery.apiflow.exception.ApiFlowConfigException;
+import com.fooddelivery.apiflow.request.ApiRequest;
 import com.fooddelivery.apiflow.validation.ResolvedValidator;
-import com.fooddelivery.apiflow.validation.ValidationRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
@@ -10,6 +10,7 @@ import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.server.PathContainer;
+import org.springframework.stereotype.Controller;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.method.HandlerMethod;
@@ -20,14 +21,16 @@ import org.springframework.web.util.pattern.PathPatternParser;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 /**
  * Startup check, run once after all singletons are created, that keeps api-routes.xml and the controllers in sync:
- * every route must map to a controller method, every application endpoint must be declared or excluded, and every
- * {@code <validator>} must resolve to a bean method {@code public boolean name(ValidationRequest)}, which is then
+ * every route must map to a controller method (in the class named by {@code <controller>}, when given), every
+ * application endpoint must be declared or excluded, and every
+ * {@code <validator>} must resolve to a bean method {@code public boolean name(ApiRequest)}, which is then
  * cached on the route as a {@link ResolvedValidator}.
  *
  * <p>All problems are thrown together as one {@link ApiFlowConfigException}. Paths are compared after
@@ -53,11 +56,16 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
                 .getBean("requestMappingHandlerMapping", RequestMappingHandlerMapping.class)
                 .getHandlerMethods();
 
+        Set<Class<?>> controllerClasses = findControllerClasses();
+
         List<String> errors = new ArrayList<>();
         for (RouteDefinition route : apiRegistry.getRoutes()) {
             String label = "[" + route.getMethod() + "] " + route.getPath();
-            if (!hasControllerMapping(route, handlerMethods)) {
+            Set<Class<?>> mappedControllers = findMappedControllers(route, handlerMethods);
+            if (mappedControllers.isEmpty()) {
                 errors.add(label + ": no controller method is mapped to this method and path");
+            } else if (route.getControllerName() != null) {
+                verifyController(route, label, mappedControllers, controllerClasses, errors);
             }
             if (route.getValidator() != null) {
                 resolveValidator(route, label, errors);
@@ -108,10 +116,10 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
         // Looked up on the bean's runtime class, which may be a proxy subclass (e.g. @Transactional, AOP)
         Method method;
         try {
-            method = bean.getClass().getMethod(methodName, ValidationRequest.class);
+            method = bean.getClass().getMethod(methodName, ApiRequest.class);
         } catch (NoSuchMethodException e) {
             errors.add(label + ": validator method not found: public boolean " + methodName
-                    + "(ValidationRequest request) in " + className);
+                    + "(ApiRequest request) in " + className);
             return;
         }
         if (method.getReturnType() != boolean.class && method.getReturnType() != Boolean.class) {
@@ -122,16 +130,55 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
         route.setResolvedValidator(new ResolvedValidator(bean, method));
     }
 
-    // Declared route -> controller: is there a mapping with a compatible HTTP method and the same (normalized) path?
-    private boolean hasControllerMapping(RouteDefinition route, Map<RequestMappingInfo, HandlerMethod> handlerMethods) {
+    // Declared route -> controller: classes of the mappings with a compatible HTTP method and the same (normalized)
+    // path; empty set if no controller handles the route
+    private Set<Class<?>> findMappedControllers(RouteDefinition route,
+                                                Map<RequestMappingInfo, HandlerMethod> handlerMethods) {
         String normalizedPath = ApiRegistry.normalizePattern(route.getPath());
-        for (RequestMappingInfo info : handlerMethods.keySet()) {
+        Set<Class<?>> controllers = new LinkedHashSet<>();
+        handlerMethods.forEach((info, handlerMethod) -> {
             if (supportsMethod(info, route.getMethod())
                     && info.getPatternValues().stream().anyMatch(p -> ApiRegistry.normalizePattern(p).equals(normalizedPath))) {
-                return true;
+                controllers.add(handlerMethod.getBeanType());
+            }
+        });
+        return controllers;
+    }
+
+    // <controller> must name a controller of the application, and that controller must be the one handling the route.
+    // Any problem is added to errors instead of thrown, so all routes are checked in one run
+    private static void verifyController(RouteDefinition route, String label, Set<Class<?>> mappedControllers,
+                                         Set<Class<?>> controllerClasses, List<String> errors) {
+        String name = route.getControllerName();
+        if (mappedControllers.stream().anyMatch(clazz -> matchesName(clazz, name))) {
+            return;
+        }
+        String handledBy = mappedControllers.stream().map(Class::getName).toList().toString();
+        if (controllerClasses.stream().noneMatch(clazz -> matchesName(clazz, name))) {
+            errors.add(label + ": <controller> '" + name + "' is not a controller class (no @Controller/@RestController"
+                    + " bean with this simple or full class name); this route is handled by " + handledBy);
+        } else {
+            errors.add(label + ": <controller> '" + name + "' does not handle this method and path; it is handled by "
+                    + handledBy);
+        }
+    }
+
+    // Application controllers (@Controller, including @RestController), with or without mappings, e.g. to tell a
+    // misspelled <controller> apart from one that exists but does not handle the route
+    private Set<Class<?>> findControllerClasses() {
+        Set<Class<?>> classes = new LinkedHashSet<>();
+        for (String beanName : applicationContext.getBeanNamesForAnnotation(Controller.class)) {
+            Class<?> type = applicationContext.getType(beanName);
+            if (type != null) {
+                classes.add(ClassUtils.getUserClass(type));
             }
         }
-        return false;
+        return classes;
+    }
+
+    // "OrderController" or "com.fooddelivery.order.controller.OrderController" both match OrderController
+    private static boolean matchesName(Class<?> clazz, String name) {
+        return clazz.getSimpleName().equals(name) || clazz.getName().equals(name);
     }
 
     // Controller -> declared route: reports every application endpoint that is neither declared nor excluded

@@ -30,11 +30,13 @@ public enum ApiStatus {
     SERVICE_UNAVAILABLE(503, "Service Unavailable", "SERVICE_UNAVAILABLE"),
     GATEWAY_TIMEOUT(504, "Gateway Timeout", "GATEWAY_TIMEOUT");
 
-    // HTTP status number
+    // HTTP status number, e.g. 404
     private final int value;
-    // Default "message" of an error body
+
+    // Default "message" of an error body, e.g. "Not Found"
     private final String reasonPhrase;
-    // Default "code" field of the response body
+
+    // Default "code" of an error body, e.g. "NOT_FOUND". Success bodies always use ApiResponse.SUCCESS_CODE
     private final String code;
 
     ApiStatus(int value, String reasonPhrase, String code) {

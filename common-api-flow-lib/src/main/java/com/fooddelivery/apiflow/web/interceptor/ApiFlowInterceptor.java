@@ -1,11 +1,11 @@
 package com.fooddelivery.apiflow.web.interceptor;
 
 import com.fooddelivery.apiflow.exception.ApiFlowErrorCode;
+import com.fooddelivery.apiflow.request.ApiRequest;
 import com.fooddelivery.apiflow.route.ApiRegistry;
 import com.fooddelivery.apiflow.route.RouteDefinition;
 import com.fooddelivery.apiflow.validation.ResolvedValidator;
 import com.fooddelivery.apiflow.validation.JsonSchemaUtil;
-import com.fooddelivery.apiflow.validation.ValidationRequest;
 import com.fooddelivery.apiflow.web.filter.CachedBodyHttpServletRequest;
 import com.fooddelivery.apiflow.web.response.ApiResponseWriter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -69,11 +69,11 @@ public class ApiFlowInterceptor implements HandlerInterceptor {
         }
 
         if (hasValidator) {
-            ValidationRequest validationRequest = new ValidationRequest(request, route.extractPathVariables(path), requestBody);
-            // Stored so that a controller parameter of type ValidationRequest receives this same instance
-            request.setAttribute(ValidationRequest.ATTRIBUTE, validationRequest);
+            ApiRequest apiRequest = new ApiRequest(request, route.extractPathVariables(path), requestBody);
+            // Stored so that a controller parameter of type ApiRequest receives this same instance
+            request.setAttribute(ApiRequest.ATTRIBUTE, apiRequest);
             // Exceptions thrown by the validator propagate to Spring's exception handling
-            if (!validator.validate(validationRequest)) {
+            if (!validator.validate(apiRequest)) {
                 log.warn("Validator {} rejected the request: [{}] {}", route.getValidator(), method, path);
                 reject(request, response, ApiFlowErrorCode.REQUEST_VALIDATION_FAILED);
                 return false;

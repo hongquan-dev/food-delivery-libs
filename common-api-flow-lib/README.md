@@ -50,9 +50,11 @@ com.fooddelivery.apiflow
 │   ├── RouteDefinition               Thông tin một route
 │   ├── ApiRouteVerifier              Đối chiếu route với controller, resolve validator lúc khởi động
 │   └── xml/ApiConfigWrapper          Model map file XML
+├── request/
+│   ├── ApiRequest                    Thông tin request truyền vào validator/controller (method, path, URL, param, header, body, path variable)
+│   └── RequestValue                  Giá trị param/header/path variable, chuyển kiểu bằng asString()/asInt()
 ├── validation/          Kiểm tra request
 │   ├── JsonSchemaUtil                Kiểm tra body theo JSON Schema
-│   ├── ValidationRequest             Thông tin request truyền vào validator (path variable, query, header, body)
 │   └── ResolvedValidator             Gọi validator nghiệp vụ của service
 ├── exception/           Lỗi cấu hình lúc khởi động
 │   ├── ApiFlowConfigException
@@ -60,7 +62,7 @@ com.fooddelivery.apiflow
 └── web/
     ├── filter/          RequestCachingFilter, CachedBodyHttpServletRequest (cache body JSON)
     ├── interceptor/     ApiFlowInterceptor (route → schema → validator)
-    ├── resolver/        ValidationRequestArgumentResolver (cho phép controller nhận tham số ValidationRequest)
+    ├── resolver/        ApiRequestArgumentResolver (cho phép controller nhận tham số ApiRequest)
     └── response/        ApiResponseWriter (filter/interceptor ghi response lỗi theo format ApiResponse)
 ```
 
@@ -118,7 +120,7 @@ File này **bắt buộc** phải có ở mọi service dùng lib. Thiếu file 
 | `<path>` | Có | Đường dẫn API, cùng cú pháp với `@GetMapping`/`@PostMapping` của Spring. Hỗ trợ biến (`{id}`, `{id:\d+}`) và wildcard (`*`, `**`). Nếu có cả `/orders/new` và `/orders/{id}` thì path cụ thể hơn được ưu tiên. |
 | `<schema>` | Không | Đường dẫn file JSON Schema trong `resources`. Để trống nếu không cần kiểm tra cấu trúc body. |
 | `<validator>` | Không | `<tên class đầy đủ>.<tên method>` của validator nghiệp vụ. Để trống nếu không cần. |
-| `<controller>` | Có | Tên class controller, bắt buộc có giá trị không rỗng. Việc xác nhận controller mapping thực tế vẫn dựa trên method và path. |
+| `<controller>` | Không | Tên class controller xử lý route này, tên ngắn (`OrderController`) hoặc tên đầy đủ (`com.fooddelivery.order.controller.OrderController`). Để trống thì không kiểm tra. Đã điền thì phải đúng: lúc khởi động lib kiểm tra class đó là controller và chính nó có method map với method + path của route. |
 
 ### Bước 2: Viết JSON Schema trong `src/main/resources/schemas/`
 
@@ -163,38 +165,48 @@ Lưu ý:
 
 Validator bắt buộc:
 - Là Spring bean (`@Component`), nằm trong package được scan (package con của class `@SpringBootApplication`).
-- Có method đúng chữ ký `public boolean tenHam(ValidationRequest request)`.
+- Có method đúng chữ ký `public boolean tenHam(ApiRequest request)`.
 - Trả `true` nếu hợp lệ, `false` nếu không. Khi trả `false`, lib trả về frontend 400 `REQUEST_VALIDATION_FAILED`.
 
-`ValidationRequest` (package `com.fooddelivery.apiflow.validation`) chứa mọi thông tin của request:
+`ApiRequest` (package `com.fooddelivery.apiflow.request`) cho lấy các thông tin sau của request:
 
-| Method | Lấy gì | Ví dụ với `POST /orders/7/items?source=web` |
+| Method | Lấy gì | Ví dụ với `POST http://localhost:8083/orders/7/items?source=web`, body `{"quantity": 2}` |
 |---|---|---|
-| `getPathVariable(name)`, `getPathVariables()` | Biến trên URL, **tên theo `<path>` trong `api-routes.xml`**. Đã URL-decode | `getPathVariable("id")` → `"7"` |
-| `getQueryParam(name)`, `getQueryParams()` | Query string. `getQueryParam` lấy giá trị đầu, `getQueryParams` lấy đủ khi tham số lặp lại (`?s=a&s=b`). Đã URL-decode | `getQueryParam("source")` → `"web"` |
-| `getHeader(name)`, `getHeaders()` | Header, tên **không phân biệt hoa thường** | `getHeader("x-client-id")` |
-| `getBody()` | Body dạng chuỗi gốc, `""` nếu không có body JSON | |
-| `getBodyJson()` | Body đã parse thành `JsonNode`, `null` nếu body rỗng hoặc không phải JSON | `getBodyJson().path("quantity").asInt()` |
-| `getMethod()`, `getPath()` | Method và path của request | `"POST"`, `"/orders/7/items"` |
-| `getServletRequest()` | `HttpServletRequest` gốc, cho các thông tin khác (cookie, IP...) | |
+| `getMethod()` | Method HTTP | `"POST"` |
+| `getPath()` | Path, không gồm query string | `"/orders/7/items"` |
+| `getFullUrl()` | URL đầy đủ, gồm cả query string | `"http://localhost:8083/orders/7/items?source=web"` |
+| `getParam(name)` | Query param theo tên. Lặp lại (`?s=a&s=b`) thì lấy giá trị đầu. Đã URL-decode | `getParam("source").asString()` → `"web"` |
+| `getHeader(name)` | Header theo tên, **không phân biệt hoa thường** | `getHeader("x-client-id").asString()` |
+| `getBody(name)` | Field cấp 1 của body JSON, kiểu `JsonNode` để giữ nguyên kiểu dữ liệu | `getBody("quantity").asInt()` → `2` |
+| `getBody(Dto.class)` | Cả body gán vào DTO (class hoặc record). Field body có mà DTO không khai báo thì bỏ qua, DTO có mà body thiếu thì `null`. Không chuyển được (sai kiểu) thì trả `null` | `getBody(AddOrderItemRequest.class)` → `AddOrderItemRequest[quantity=2]` |
+| `getPathVariable(name)` | Biến trên URL, **tên theo `<path>` trong `api-routes.xml`**. Đã URL-decode | `getPathVariable("id").asInt()` → `7` |
 
-Thiếu path variable/query param/header thì các method trả `null`, không ném lỗi.
+`getParam`, `getHeader`, `getPathVariable` trả về `RequestValue` (không bao giờ `null`), chuyển kiểu bằng cách gọi tiếp:
+
+| Hàm của `RequestValue` | Trả về | Ví dụ |
+|---|---|---|
+| `asString()` | Chuỗi gốc | `"7"` |
+| `asInt()` | `Integer`, bỏ qua khoảng trắng 2 đầu. Không phải số nguyên hoặc vượt giới hạn `int` thì `null` | `" 7 "` → `7`, `"abc"` → `null` |
+
+Không có giá trị (thiếu param/header/field/biến, hoặc body rỗng/không phải JSON) thì các hàm trả `null`, không ném lỗi.
+
+> Muốn so sánh thì chuyển kiểu trước: `getParam("page").asInt()`, `getParam("source").asString()`. Gọi thẳng `getParam("source").equals("web")` luôn ra `false`, vì đang so `RequestValue` với `String`.
 
 ```java
 @Component
 public class OrderValidator {
 
     // Cấu trúc và kiểu dữ liệu của body đã được kiểm tra qua schema, ở đây chỉ kiểm tra nghiệp vụ
-    public boolean validateAddItem(ValidationRequest request) {
-        String orderId = request.getPathVariable("id");           // từ URL /orders/{id}/items
-        String source = request.getQueryParam("source");         // từ ?source=...
-        String clientId = request.getHeader("X-Client-Id");      // từ header
-        JsonNode body = request.getBodyJson();                   // từ body
+    public boolean validateAddItem(ApiRequest request) {
+        Integer orderId = request.getPathVariable("id").asInt();  // từ URL /orders/{id}/items
+        String source = request.getParam("source").asString();   // từ ?source=...
+        String clientId = request.getHeader("X-Client-Id").asString(); // từ header
+        JsonNode quantity = request.getBody("quantity");         // từ body
 
-        return orderId.matches("\\d+")
+        return orderId != null && orderId > 0
                 && (source == null || List.of("web", "mobile").contains(source))
                 && clientId != null && !clientId.isBlank()
-                && body.path("quantity").asInt() > 0;
+                && quantity.asInt() > 0;
     }
 }
 ```
@@ -212,13 +224,13 @@ public ResponseEntity<ApiResponse<OrderItemDto>> addItem(@PathVariable Long id, 
 
 Controller đọc `@RequestBody` bình thường, vì body đã được cache lại.
 
-Hoặc khai báo một tham số `ValidationRequest` thay cho `@PathVariable`/`@RequestParam`/`@RequestHeader`/`@RequestBody`, đọc dữ liệu giống hệt trong validator:
+Hoặc khai báo một tham số `ApiRequest` thay cho `@PathVariable`/`@RequestParam`/`@RequestHeader`/`@RequestBody`, đọc dữ liệu giống hệt trong validator:
 
 ```java
 @PostMapping("/orders/{id}/items")
-public ResponseEntity<ApiResponse<OrderItemDto>> addItem(ValidationRequest request) {
-    Long id = Long.valueOf(request.getPathVariable("id"));
-    JsonNode body = request.getBodyJson();
+public ResponseEntity<ApiResponse<OrderItemDto>> addItem(ApiRequest request) {
+    Integer id = request.getPathVariable("id").asInt();
+    int quantity = request.getBody("quantity").asInt();
     ...
 }
 ```
@@ -226,7 +238,7 @@ public ResponseEntity<ApiResponse<OrderItemDto>> addItem(ValidationRequest reque
 - Route có `<validator>`: controller nhận **đúng object** validator đã kiểm tra, không đọc lại request, không parse lại body.
 - Route không có `<validator>` (hoặc path thuộc danh sách loại trừ): lib tạo mới. Path variable lấy tên theo `<path>` trong XML; path bị loại trừ thì lấy theo mapping của controller.
 - Khác với `@RequestParam`/`@RequestHeader`, thiếu giá trị thì nhận `null` chứ không tự trả 400. Giá trị bắt buộc nên kiểm tra trong validator.
-- `getBody()`/`getBodyJson()` chỉ có dữ liệu với body JSON (`Content-Type: application/json`), vì chỉ body JSON được cache.
+- `getBody(...)` chỉ có dữ liệu với body JSON (`Content-Type: application/json`), vì chỉ body JSON được cache.
 
 ---
 
@@ -330,11 +342,11 @@ Fix the routes above in 'api-routes.xml' (or the controllers/validators they poi
 |---|---|
 | `<method>` là method HTTP hợp lệ (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`, `TRACE`) | Không khởi động |
 | `<path>` không rỗng, bắt đầu bằng `/`, đúng cú pháp pattern | Không khởi động |
-| `<controller>` có giá trị không rỗng | Không khởi động |
 | Không có route trùng. `/items/{id}` và `/items/{itemId}` cùng method được coi là trùng | Không khởi động |
 | File `<schema>` tồn tại và là JSON object | Không khởi động |
 | Mỗi route có controller xử lý đúng method và path | Không khởi động |
-| `<validator>`: đúng định dạng `class.method`, class tồn tại, là Spring bean (đúng 1 bean), có method `public boolean tenHam(ValidationRequest)` | Không khởi động |
+| `<controller>` (nếu có): là class controller (`@Controller`/`@RestController`) có thật, và chính class đó xử lý method + path của route | Không khởi động |
+| `<validator>`: đúng định dạng `class.method`, class tồn tại, là Spring bean (đúng 1 bean), có method `public boolean tenHam(ApiRequest)` | Không khởi động |
 | Endpoint có trong controller nhưng **không** khai báo trong xml và không thuộc danh sách loại trừ | Không khởi động; endpoint bị thiếu được liệt kê trong lỗi cấu hình |
 
 Các endpoint thuộc danh sách `api-flow.exclude-paths` (cũng như các path hệ thống được loại trừ mặc định) không cần khai báo trong XML.

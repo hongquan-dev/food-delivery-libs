@@ -7,7 +7,7 @@ import com.fooddelivery.apiflow.route.ApiRegistry;
 import com.fooddelivery.apiflow.route.ApiRouteVerifier;
 import com.fooddelivery.apiflow.web.filter.RequestCachingFilter;
 import com.fooddelivery.apiflow.web.interceptor.ApiFlowInterceptor;
-import com.fooddelivery.apiflow.web.resolver.ValidationRequestArgumentResolver;
+import com.fooddelivery.apiflow.web.resolver.ApiRequestArgumentResolver;
 import com.fooddelivery.apiflow.web.response.ApiResponseWriter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,7 +34,7 @@ import java.util.List;
  *
  * <p>Request pipeline: {@link RequestCachingFilter} (caches JSON body, size limit) -> {@link ApiFlowInterceptor}
  * (route lookup, JSON Schema, business validator; skipped on excluded paths) -> controller, which may take a
- * {@code ValidationRequest} parameter via {@link ValidationRequestArgumentResolver}. At startup, {@link ApiRegistry}
+ * {@code ApiRequest} parameter via {@link ApiRequestArgumentResolver}. At startup, {@link ApiRegistry}
  * loads the routes file and {@link ApiRouteVerifier} cross-checks it against the controllers.
  */
 @AutoConfiguration(after = JacksonAutoConfiguration.class)
@@ -86,7 +86,7 @@ public class ApiFlowAutoConfiguration {
         return new ApiFlowInterceptor(apiRegistry, apiResponseWriter);
     }
 
-    // Registers the interceptor (on every path except the excluded ones) and the ValidationRequest argument resolver
+    // Registers the interceptor (on every path except the excluded ones) and the ApiRequest argument resolver
     @Bean
     public WebMvcConfigurer apiFlowWebMvcConfigurer(ApiFlowInterceptor apiFlowInterceptor, ApiFlowProperties properties,
                                                     ApiRegistry apiRegistry) {
@@ -101,7 +101,7 @@ public class ApiFlowAutoConfiguration {
 
             @Override
             public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
-                resolvers.add(new ValidationRequestArgumentResolver(apiRegistry));
+                resolvers.add(new ApiRequestArgumentResolver(apiRegistry));
             }
         };
     }

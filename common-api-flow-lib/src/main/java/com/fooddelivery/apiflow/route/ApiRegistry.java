@@ -84,12 +84,6 @@ public class ApiRegistry {
                 continue;
             }
 
-            String controller = dto.getController() == null ? "" : dto.getController().trim();
-            if (controller.isEmpty()) {
-                errors.add(label + ": missing required <controller>");
-                continue;
-            }
-
             PathPattern pattern;
             try {
                 pattern = PATH_PATTERN_PARSER.parse(path);
@@ -121,6 +115,8 @@ public class ApiRegistry {
 
             // <validator> is kept as text here; ApiRouteVerifier resolves it to a bean + method once the context is ready
             String validator = dto.getValidator() == null || dto.getValidator().isBlank() ? null : dto.getValidator().trim();
+            // <controller> is optional; when present, ApiRouteVerifier checks that this controller really handles the route
+            String controller = dto.getController() == null || dto.getController().isBlank() ? null : dto.getController().trim();
             RouteDefinition route = new RouteDefinition(method, path, pattern, validator, schemaPath, schemaNode, controller);
             allRoutes.add(route);
 

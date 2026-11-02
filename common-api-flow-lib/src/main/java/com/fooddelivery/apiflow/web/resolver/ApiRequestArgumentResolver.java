@@ -1,8 +1,8 @@
 package com.fooddelivery.apiflow.web.resolver;
 
+import com.fooddelivery.apiflow.request.ApiRequest;
 import com.fooddelivery.apiflow.route.ApiRegistry;
 import com.fooddelivery.apiflow.route.RouteDefinition;
-import com.fooddelivery.apiflow.validation.ValidationRequest;
 import com.fooddelivery.apiflow.web.filter.CachedBodyHttpServletRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.MethodParameter;
@@ -15,26 +15,26 @@ import org.springframework.web.servlet.HandlerMapping;
 import java.util.Map;
 
 /**
- * Lets a controller method declare a {@link ValidationRequest} parameter, as an alternative to
+ * Lets a controller method declare an {@link ApiRequest} parameter, as an alternative to
  * {@code @PathVariable}/{@code @RequestParam}/{@code @RequestHeader}/{@code @RequestBody}:
  *
  * <pre>
  * &#64;PostMapping("/orders/{id}/items")
- * public ResponseEntity&lt;...&gt; addItem(ValidationRequest request) { ... }
+ * public ResponseEntity&lt;...&gt; addItem(ApiRequest request) { ... }
  * </pre>
  *
  * Unlike those annotations, a missing value is returned as {@code null}; nothing is rejected automatically.
  */
-public class ValidationRequestArgumentResolver implements HandlerMethodArgumentResolver {
+public class ApiRequestArgumentResolver implements HandlerMethodArgumentResolver {
     private final ApiRegistry apiRegistry;
 
-    public ValidationRequestArgumentResolver(ApiRegistry apiRegistry) {
+    public ApiRequestArgumentResolver(ApiRegistry apiRegistry) {
         this.apiRegistry = apiRegistry;
     }
 
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
-        return parameter.getParameterType() == ValidationRequest.class;
+        return parameter.getParameterType() == ApiRequest.class;
     }
 
     @Override
@@ -43,15 +43,15 @@ public class ValidationRequestArgumentResolver implements HandlerMethodArgumentR
         HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
 
         // Route with a validator: reuse the instance ApiFlowInterceptor built and the validator already checked
-        if (request.getAttribute(ValidationRequest.ATTRIBUTE) instanceof ValidationRequest validationRequest) {
-            return validationRequest;
+        if (request.getAttribute(ApiRequest.ATTRIBUTE) instanceof ApiRequest apiRequest) {
+            return apiRequest;
         }
 
-        // Otherwise build one now and store it, so several ValidationRequest parameters share one instance
-        ValidationRequest validationRequest = new ValidationRequest(request, resolvePathVariables(request),
+        // Otherwise build one now and store it, so several ApiRequest parameters share one instance
+        ApiRequest apiRequest = new ApiRequest(request, resolvePathVariables(request),
                 CachedBodyHttpServletRequest.readCachedBody(request));
-        request.setAttribute(ValidationRequest.ATTRIBUTE, validationRequest);
-        return validationRequest;
+        request.setAttribute(ApiRequest.ATTRIBUTE, apiRequest);
+        return apiRequest;
     }
 
     // Variable names come from <path> in api-routes.xml, so they match what a validator would see.

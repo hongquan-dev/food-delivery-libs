@@ -25,7 +25,8 @@ public class RouteDefinition {
     private final String schemaPath;
     // Parsed JSON Schema, loaded once at startup; null if none
     private final JsonNode schema;
-    // Informational only (<controller> in the XML); matching to controllers is done by method + path
+    // <controller> from the XML, simple or full class name, e.g. "OrderController"; null if none.
+    // Matching to controllers is done by method + path; ApiRouteVerifier then checks the match is in this class
     private final String controllerName;
 
     private ResolvedValidator resolvedValidator;

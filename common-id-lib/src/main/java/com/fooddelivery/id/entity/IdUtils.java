@@ -20,29 +20,53 @@ public class IdUtils {
     // Shared by all entity types; only its last 3 digits are used
     private static final AtomicInteger COUNTER = new AtomicInteger(0);
 
-    // New ID for the given type, e.g. ORDER -> "17290500004007". Thread-safe
+    /**
+     * Generates a new ID. Thread-safe.
+     *
+     * @param type kind of object the ID is for
+     * @return a 14-digit ID, e.g. {@code ORDER -> "17290500004007"}
+     */
     public static String generate(EntityType type) {
         long epochSeconds = Instant.now().getEpochSecond();
         int sequence = COUNTER.incrementAndGet() % 1000;
         return String.format("%d%d%03d", epochSeconds, type.getCode(), sequence);
     }
 
-    // Type stored in the 11th digit of the ID
+    /**
+     * Reads the type of object an ID belongs to, from its 11th digit.
+     *
+     * @param id a 14-digit ID, e.g. {@code "17290500004007"}
+     * @return the type, e.g. {@link EntityType#ORDER}
+     * @throws IllegalArgumentException if the ID is not 14 digits or its 11th digit is not a known type code
+     */
     public static EntityType decodeObjectType(String id) {
         validateId(id);
         int typeCode = Character.getNumericValue(id.charAt(10));
         return EntityType.fromCode(typeCode);
     }
 
-    // Same as decodeObjectType but returns the raw digit; still fails if the digit is not a known type
+    /**
+     * Same as {@link #decodeObjectType} but returns the raw digit.
+     *
+     * @param id a 14-digit ID, e.g. {@code "17290500004007"}
+     * @return the type code, e.g. {@code 4}
+     * @throws IllegalArgumentException if the ID is not 14 digits or its 11th digit is not a known type code
+     */
     public static int decodeObjectTypeCode(String id) {
         validateId(id);
         int typeCode = Character.getNumericValue(id.charAt(10));
+        // Only called for its exception: an unknown digit must fail here as in decodeObjectType
         EntityType.fromCode(typeCode);
         return typeCode;
     }
 
-    // Creation time of the ID, in epoch seconds (first 10 digits)
+    /**
+     * Reads the creation time of an ID, from its first 10 digits.
+     *
+     * @param id a 14-digit ID, e.g. {@code "17290500004007"}
+     * @return creation time in epoch seconds, e.g. {@code 1729050000}
+     * @throws IllegalArgumentException if the ID is not 14 digits
+     */
     public static long decodeTimestamp(String id) {
         validateId(id);
         String epochSecondsStr = id.substring(0, 10);
