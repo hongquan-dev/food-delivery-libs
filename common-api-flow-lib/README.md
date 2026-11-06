@@ -52,7 +52,7 @@ com.fooddelivery.apiflow
 │   └── xml/ApiConfigWrapper          Model map file XML
 ├── request/
 │   ├── ApiRequest                    Thông tin request truyền vào validator/controller (method, path, URL, param, header, body, path variable)
-│   └── RequestValue                  Giá trị param/header/path variable, chuyển kiểu bằng asString()/asInt()
+│   └── RequestValue                  Giá trị param/header/cookie/path variable, chuyển kiểu bằng asString()/asInt()
 ├── validation/          Kiểm tra request
 │   ├── JsonSchemaUtil                Kiểm tra body theo JSON Schema
 │   └── ResolvedValidator             Gọi validator nghiệp vụ của service
@@ -175,13 +175,15 @@ Validator bắt buộc:
 | `getMethod()` | Method HTTP | `"POST"` |
 | `getPath()` | Path, không gồm query string | `"/orders/7/items"` |
 | `getFullUrl()` | URL đầy đủ, gồm cả query string | `"http://localhost:8083/orders/7/items?source=web"` |
+| `getRemoteAddr()` | IP của client kết nối trực tiếp. Sau proxy/gateway thì là IP của proxy; không đọc `X-Forwarded-For` vì client tự giả được | `"127.0.0.1"` |
 | `getParam(name)` | Query param theo tên. Lặp lại (`?s=a&s=b`) thì lấy giá trị đầu. Đã URL-decode | `getParam("source").asString()` → `"web"` |
 | `getHeader(name)` | Header theo tên, **không phân biệt hoa thường** | `getHeader("x-client-id").asString()` |
+| `getCookie(name)` | Cookie theo tên, **phân biệt hoa thường**. Trùng tên thì lấy giá trị đầu. Giữ nguyên như client gửi, không URL-decode | `getCookie("refresh_token").asString()` |
 | `getBody(name)` | Field cấp 1 của body JSON, kiểu `JsonNode` để giữ nguyên kiểu dữ liệu | `getBody("quantity").asInt()` → `2` |
 | `getBody(Dto.class)` | Cả body gán vào DTO (class hoặc record). Field body có mà DTO không khai báo thì bỏ qua, DTO có mà body thiếu thì `null`. Không chuyển được (sai kiểu) thì trả `null` | `getBody(AddOrderItemRequest.class)` → `AddOrderItemRequest[quantity=2]` |
 | `getPathVariable(name)` | Biến trên URL, **tên theo `<path>` trong `api-routes.xml`**. Đã URL-decode | `getPathVariable("id").asInt()` → `7` |
 
-`getParam`, `getHeader`, `getPathVariable` trả về `RequestValue` (không bao giờ `null`), chuyển kiểu bằng cách gọi tiếp:
+`getParam`, `getHeader`, `getCookie`, `getPathVariable` trả về `RequestValue` (không bao giờ `null`), chuyển kiểu bằng cách gọi tiếp:
 
 | Hàm của `RequestValue` | Trả về | Ví dụ |
 |---|---|---|

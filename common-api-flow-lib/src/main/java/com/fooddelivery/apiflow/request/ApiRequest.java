@@ -5,20 +5,21 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.Collections;
 import java.util.Map;
 
 /**
- * Read-only view of one HTTP request: method, path, full URL, values looked up by name from query parameters,
- * headers, body fields and path variables, and the whole body as a DTO. It is the argument of every business validator
- * ({@code public boolean name(ApiRequest)}) and can also be a controller parameter.
+ * Read-only view of one HTTP request: method, path, full URL, client IP, values looked up by name from query
+ * parameters, headers, cookies, body fields and path variables, and the whole body as a DTO. It is the argument of
+ * every business validator ({@code public boolean name(ApiRequest)}) and can also be a controller parameter.
  *
  * <p>One instance per request, shared through the request attribute {@link #ATTRIBUTE}, so the controller sees the
- * same values the validator checked. Parameters, headers and path variables come back as a {@link RequestValue}
- * (never {@code null}, converted with e.g. {@code .asInt()}); the other getters return {@code null} when the value is
- * absent. No getter throws. Not thread-safe.
+ * same values the validator checked. Parameters, headers, cookies and path variables come back as a
+ * {@link RequestValue} (never {@code null}, converted with e.g. {@code .asInt()}); the other getters return
+ * {@code null} when the value is absent. No getter throws. Not thread-safe.
  */
 public class ApiRequest {
     // Request attribute key under which the instance for the current request is stored
@@ -64,6 +65,10 @@ public class ApiRequest {
         return queryString == null ? url.toString() : url.append('?').append(queryString).toString();
     }
 
+    // IP address of the direct client, IPv4 or IPv6, e.g. "127.0.0.1". Behind a proxy or gateway this is the proxy's
+    // address; X-Forwarded-For is not read, because a client can forge it
+    public String getRemoteAddr() { return servletRequest.getRemoteAddr(); }
+
     // Query parameter, e.g. ?page=1 -> getParam("page").asString() = "1", getParam("page").asInt() = 1.
     // First value if repeated. URL-decoded; form fields of an x-www-form-urlencoded body are included too
     public RequestValue getParam(String name) { return RequestValue.of(servletRequest.getParameter(name)); }
@@ -91,6 +96,20 @@ public class ApiRequest {
         } catch (JsonProcessingException | IllegalArgumentException e) {
             return null;
         }
+    }
+
+    // Cookie, name is case-sensitive, e.g. Cookie: refresh_token=abc -> getCookie("refresh_token").asString() = "abc".
+    // First value if repeated (e.g. the same name set for two paths). Returned as sent, not URL-decoded
+    public RequestValue getCookie(String name) {
+        Cookie[] cookies = servletRequest.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if (cookie.getName().equals(name)) {
+                    return RequestValue.of(cookie.getValue());
+                }
+            }
+        }
+        return RequestValue.of(null);
     }
 
     // Variable of <path> in api-routes.xml, e.g. /orders/{id} + /orders/7 -> getPathVariable("id").asInt() = 7.

@@ -13,7 +13,8 @@ public enum EntityType {
     RESTAURANT(2, "Restaurant", "Nhà hàng"),
     FOOD(3, "Food", "Món ăn"),
     ORDER(4, "Order", "Đơn hàng"),
-    PAYMENT(5, "Payment", "Thanh toán");
+    PAYMENT(5, "Payment", "Thanh toán"),
+    REFRESH_TOKEN(6, "Refresh token", "Mã làm mới phiên đăng nhập");
 
     // Digit written into the ID; must stay unique and stable
     private final int code;

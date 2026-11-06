@@ -42,6 +42,7 @@ Các service trong dự án đã có lib này qua `common-lib`. Nếu muốn dù
 | `FOOD` | 3 | Food | Món ăn |
 | `ORDER` | 4 | Order | Đơn hàng |
 | `PAYMENT` | 5 | Payment | Thanh toán |
+| `REFRESH_TOKEN` | 6 | Refresh token | Mã làm mới phiên đăng nhập |
 
 ---
 

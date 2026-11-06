@@ -1,8 +1,8 @@
 package com.fooddelivery.apiflow.request;
 
 /**
- * One text value of a request (query parameter, header or path variable), returned by {@link ApiRequest} so it can
- * be converted in the same expression, e.g. {@code request.getParam("page").asInt()}.
+ * One text value of a request (query parameter, header, cookie or path variable), returned by {@link ApiRequest} so
+ * it can be converted in the same expression, e.g. {@code request.getParam("page").asInt()}.
  *
  * <p>Never {@code null} itself, even when the value is absent, so calls can always be chained; the conversion methods
  * return {@code null} instead. Immutable.
