@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * Read-only view of one HTTP request: method, path, full URL, client IP, values looked up by name from query
  * parameters, headers, cookies, body fields and path variables, and the whole body as a DTO. It is the argument of
- * every business validator ({@code public boolean name(ApiRequest)}) and can also be a controller parameter.
+ * every business validator ({@code public void name(ApiRequest)}) and can also be a controller parameter.
  *
  * <p>One instance per request, shared through the request attribute {@link #ATTRIBUTE}, so the controller sees the
  * same values the validator checked. Parameters, headers, cookies and path variables come back as a

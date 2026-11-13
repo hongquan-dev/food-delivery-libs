@@ -1,7 +1,7 @@
 package com.fooddelivery.web.exception;
 
-import com.fooddelivery.web.model.FieldErrorDetail;
-import com.fooddelivery.web.status.ApiStatus;
+import com.fooddelivery.dto.response.FieldErrorDetail;
+import com.fooddelivery.dto.response.ApiStatus;
 
 import java.util.List;
 

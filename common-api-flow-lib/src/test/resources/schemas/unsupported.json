@@ -1,0 +1,8 @@
+{
+  "type": "object",
+  "additionalProperties": { "type": "string" },
+  "properties": {
+    "username": { "type": "string", "minLength": 3 },
+    "tags": { "type": "array", "items": { "type": "text", "enum": ["a", "b"] } }
+  }
+}

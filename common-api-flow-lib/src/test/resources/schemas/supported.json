@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Add order item",
+  "type": "object",
+  "required": ["foodId", "quantity"],
+  "properties": {
+    "foodId": { "type": "integer", "description": "14-digit ID" },
+    "quantity": { "type": "integer" },
+    "notes": { "type": ["string", "null"] },
+    "toppings": { "type": "array", "items": { "type": "string" } }
+  }
+}

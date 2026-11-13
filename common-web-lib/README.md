@@ -20,20 +20,23 @@ Ngoài cách tự trả lỗi ở trên, có thể **ném lỗi** và để `Glo
 
 ```
 com.fooddelivery.web
-├── handler/        ResponseHandler                         trả response: generateResponse, generateErrorResponse
-├── model/          ApiResponse, FieldErrorDetail, PageMeta  cấu trúc body
-├── status/         ApiStatus                               mã HTTP, kèm code và message mặc định
-├── exception/      BusinessException                       lỗi nghiệp vụ, tự ném khi dữ liệu sai quy tắc
-│                   GlobalExceptionHandler                  bắt mọi exception, trả về format ApiResponse
-└── autoconfigure/  CommonWebAutoConfiguration              tự đăng ký GlobalExceptionHandler cho mọi service
+├── handler/        ResponseHandler             controller trả response: generateResponse, generateErrorResponse
+│                   ApiResponseWriter           filter/interceptor ghi response lỗi thẳng ra HttpServletResponse
+├── exception/      BusinessException           lỗi nghiệp vụ, tự ném khi dữ liệu sai quy tắc
+│                   GlobalExceptionHandler      bắt mọi exception, trả về format ApiResponse
+└── autoconfigure/  CommonWebAutoConfiguration  tự đăng ký GlobalExceptionHandler và ApiResponseWriter cho mọi service
 ```
+
+Các model của body (`ApiResponse`, `ApiStatus`, `FieldErrorDetail`, `PageMeta`) nằm ở
+[common-dto-lib](../common-dto-lib/README.md), package `com.fooddelivery.dto.response`. Lib này đã kéo sẵn
+`common-dto-lib` nên không cần khai báo thêm.
 
 ```java
 import com.fooddelivery.web.handler.ResponseHandler;
-import com.fooddelivery.web.model.ApiResponse;
-import com.fooddelivery.web.model.FieldErrorDetail;
-import com.fooddelivery.web.model.PageMeta;
-import com.fooddelivery.web.status.ApiStatus;
+import com.fooddelivery.dto.response.ApiResponse;
+import com.fooddelivery.dto.response.ApiStatus;
+import com.fooddelivery.dto.response.FieldErrorDetail;
+import com.fooddelivery.dto.response.PageMeta;
 ```
 
 ```java
@@ -334,7 +337,7 @@ throw new BusinessException(ApiStatus.BAD_REQUEST, "INVALID_ORDER", "Invalid ord
 
 - `BusinessException` là unchecked exception: không cần khai báo `throws`, và tự rollback `@Transactional`.
 - Chỉ nhận status lỗi (4xx, 5xx), truyền 2xx sẽ báo `IllegalArgumentException`.
-- Ném từ **validator của api-flow** cũng được: client nhận đúng lỗi chi tiết thay vì `REQUEST_VALIDATION_FAILED` chung chung.
+- Ném từ **validator của api-flow** là cách nên dùng: validator khai báo `void`, client nhận đúng lỗi chi tiết thay vì `REQUEST_VALIDATION_FAILED` chung chung.
 
 ### Controller khi dùng cách này
 
@@ -354,3 +357,31 @@ public ResponseEntity<ApiResponse<OrderDto>> getOrder(@PathVariable Long id) {
 
 - Service tự viết `@RestControllerAdvice` riêng thì handler của service được ưu tiên với các exception nó xử lý (`GlobalExceptionHandler` có độ ưu tiên thấp nhất).
 - Muốn thay hẳn: khai báo một bean `GlobalExceptionHandler` (vd. class con), lib sẽ không tạo bean mặc định nữa.
+
+---
+
+## Trả lỗi từ filter: `ApiResponseWriter`
+
+Lỗi xảy ra trong servlet filter hoặc interceptor (trước khi tới controller) không đi qua `ResponseHandler` hay
+`GlobalExceptionHandler`. Khi đó inject bean `ApiResponseWriter` (lib tự đăng ký) để ghi lỗi đúng format `ApiResponse`,
+dùng chung `ObjectMapper` với controller:
+
+```java
+public class OriginCheckFilter extends OncePerRequestFilter {
+    private final ApiResponseWriter apiResponseWriter;
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
+        if (!allowed(request)) {
+            apiResponseWriter.writeError(request, response, ApiStatus.FORBIDDEN, "ORIGIN_NOT_ALLOWED",
+                    "Request origin is not allowed");
+            return;
+        }
+        chain.doFilter(request, response);
+    }
+}
+```
+
+- `common-api-flow-lib` cũng dùng bean này để trả 413, 404 `API_NOT_FOUND`, 400 `INVALID_REQUEST_BODY`...
+- Muốn thay: khai báo một bean `ApiResponseWriter` riêng.

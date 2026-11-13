@@ -62,9 +62,11 @@ com.fooddelivery.apiflow
 └── web/
     ├── filter/          RequestCachingFilter, CachedBodyHttpServletRequest (cache body JSON)
     ├── interceptor/     ApiFlowInterceptor (route → schema → validator)
-    ├── resolver/        ApiRequestArgumentResolver (cho phép controller nhận tham số ApiRequest)
-    └── response/        ApiResponseWriter (filter/interceptor ghi response lỗi theo format ApiResponse)
+    └── resolver/        ApiRequestArgumentResolver (cho phép controller nhận tham số ApiRequest)
 ```
+
+Response lỗi của filter và interceptor được ghi bằng bean `ApiResponseWriter` của
+[common-web-lib](../common-web-lib/README.md).
 
 ---
 
@@ -154,19 +156,34 @@ Các keyword được hỗ trợ:
 | `required` | Danh sách field bắt buộc phải có. |
 | `properties` | Định nghĩa từng field, lồng nhau được không giới hạn cấp. |
 | `items` | Schema áp dụng cho từng phần tử của mảng. Không khai báo thì phần tử nào cũng hợp lệ. |
-| `additionalProperties` | **Mặc định là `false`**: body có field không khai báo trong `properties` thì bị chặn, ở mọi cấp. Đặt `true` để cho phép field lạ. |
+| `additionalProperties` | **Mặc định là `false`**: body có field không khai báo trong `properties` thì bị chặn, ở mọi cấp. Đặt `true` để cho phép field lạ. Chỉ nhận `true`/`false`, không nhận schema. |
+
+Ngoài ra được ghi các keyword chú thích, lib không kiểm tra: `$schema`, `$id`, `$comment`, `title`, `description`,
+`examples`, `default`.
 
 Lưu ý:
 - **Khác chuẩn JSON Schema:** chuẩn mặc định `additionalProperties` là `true`. Lib đặt mặc định `false` để body phải giống hệt cấu trúc schema.
 - **Giá trị `null`** chỉ hợp lệ khi `type` của field có `"null"`.
-- **Chưa hỗ trợ** `minLength`, `maxLength`, `pattern`, `format`, `enum`, `minimum`, `maximum`, `$ref`, `oneOf`... Các keyword này bị bỏ qua.
+- **Keyword không hỗ trợ thì service không khởi động**, ví dụ `minLength`, `maxLength`, `pattern`, `format`, `enum`,
+  `minimum`, `maximum`, `$ref`, `oneOf`, hoặc `type` sai tên. Như vậy schema không bao giờ trông chặt hơn những gì lib
+  thực sự kiểm tra. Các ràng buộc về giá trị (độ dài, định dạng, khoảng giá trị) viết trong validator.
+
+```
+- [POST] /auth/register: cannot load <schema> 'schemas/register.json': #/properties/username: unsupported keyword 'minLength'
+```
 
 ### Bước 3: Viết validator nghiệp vụ
 
 Validator bắt buộc:
 - Là Spring bean (`@Component`), nằm trong package được scan (package con của class `@SpringBootApplication`).
-- Có method đúng chữ ký `public boolean tenHam(ApiRequest request)`.
-- Trả `true` nếu hợp lệ, `false` nếu không. Khi trả `false`, lib trả về frontend 400 `REQUEST_VALIDATION_FAILED`.
+- Có method đúng chữ ký `public void tenHam(ApiRequest request)` (nên dùng) hoặc `public boolean tenHam(ApiRequest request)`.
+
+| Chữ ký | Hợp lệ | Không hợp lệ | Client nhận |
+|---|---|---|---|
+| `void` (nên dùng) | Chạy hết method | Ném `BusinessException` | Đúng status, code và danh sách field lỗi đã ném |
+| `boolean` | Trả `true` | Trả `false` | 400 `REQUEST_VALIDATION_FAILED`, không biết field nào sai |
+
+Validator `boolean` vẫn ném `BusinessException` được, kết quả giống `void`.
 
 `ApiRequest` (package `com.fooddelivery.apiflow.request`) cho lấy các thông tin sau của request:
 
@@ -198,17 +215,29 @@ Không có giá trị (thiếu param/header/field/biến, hoặc body rỗng/kh�
 @Component
 public class OrderValidator {
 
-    // Cấu trúc và kiểu dữ liệu của body đã được kiểm tra qua schema, ở đây chỉ kiểm tra nghiệp vụ
-    public boolean validateAddItem(ApiRequest request) {
+    // Cấu trúc và kiểu dữ liệu của body đã được kiểm tra qua schema, ở đây chỉ kiểm tra giá trị
+    public void validateAddItem(ApiRequest request) {
         Integer orderId = request.getPathVariable("id").asInt();  // từ URL /orders/{id}/items
         String source = request.getParam("source").asString();   // từ ?source=...
         String clientId = request.getHeader("X-Client-Id").asString(); // từ header
         JsonNode quantity = request.getBody("quantity");         // từ body
 
-        return orderId != null && orderId > 0
-                && (source == null || List.of("web", "mobile").contains(source))
-                && clientId != null && !clientId.isBlank()
-                && quantity.asInt() > 0;
+        List<FieldErrorDetail> errors = new ArrayList<>();
+        if (orderId == null || orderId <= 0) {
+            errors.add(new FieldErrorDetail("id", "must be a positive integer"));
+        }
+        if (source != null && !List.of("web", "mobile").contains(source)) {
+            errors.add(new FieldErrorDetail("source", "must be web or mobile"));
+        }
+        if (clientId == null || clientId.isBlank()) {
+            errors.add(new FieldErrorDetail("X-Client-Id", "is required"));
+        }
+        if (quantity.asInt() <= 0) {
+            errors.add(new FieldErrorDetail("quantity", "must be greater than 0"));
+        }
+        if (!errors.isEmpty()) {
+            throw new BusinessException(ApiStatus.BAD_REQUEST, "INVALID_ORDER_ITEM", "Order item is invalid", errors);
+        }
     }
 }
 ```
@@ -292,7 +321,7 @@ Lưu ý:
 
 ## Response lỗi
 
-Mọi lỗi dùng format chung `ApiResponse` của [common-web-lib](../common-web-lib/README.md), ví dụ:
+Mọi lỗi dùng format chung `ApiResponse` của [common-dto-lib](../common-dto-lib/README.md), ví dụ:
 
 ```json
 {
@@ -310,12 +339,13 @@ Mọi lỗi dùng format chung `ApiResponse` của [common-web-lib](../common-we
 |---|---|---|
 | 404 | `API_NOT_FOUND` | Method + path không có trong `api-routes.xml`, hoặc không có controller xử lý. |
 | 400 | `INVALID_REQUEST_BODY` | Body không đúng schema: thiếu field, sai kiểu, thừa field, không phải JSON, body rỗng. |
-| 400 | `REQUEST_VALIDATION_FAILED` | Validator trả `false`. |
+| 400 | `REQUEST_VALIDATION_FAILED` | Validator kiểu `boolean` trả `false`. |
 | 413 | `PAYLOAD_TOO_LARGE` | Body JSON vượt `api-flow.max-body-size`. |
 
 Các mã `PAYLOAD_TOO_LARGE`, `API_NOT_FOUND`, `INVALID_REQUEST_BODY`, `REQUEST_VALIDATION_FAILED` khai báo trong `ApiFlowErrorCode`.
 
-Exception do validator ném ra không được lib bắt, Spring xử lý theo mặc định (500).
+Exception do validator ném ra được `GlobalExceptionHandler` của [common-web-lib](../common-web-lib/README.md) trả về:
+`BusinessException` giữ nguyên status, code và field lỗi; exception khác thành 500 `INTERNAL_ERROR`.
 
 ---
 
@@ -345,10 +375,10 @@ Fix the routes above in 'api-routes.xml' (or the controllers/validators they poi
 | `<method>` là method HTTP hợp lệ (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`, `TRACE`) | Không khởi động |
 | `<path>` không rỗng, bắt đầu bằng `/`, đúng cú pháp pattern | Không khởi động |
 | Không có route trùng. `/items/{id}` và `/items/{itemId}` cùng method được coi là trùng | Không khởi động |
-| File `<schema>` tồn tại và là JSON object | Không khởi động |
+| File `<schema>` tồn tại, là JSON object và chỉ dùng keyword được hỗ trợ | Không khởi động |
 | Mỗi route có controller xử lý đúng method và path | Không khởi động |
 | `<controller>` (nếu có): là class controller (`@Controller`/`@RestController`) có thật, và chính class đó xử lý method + path của route | Không khởi động |
-| `<validator>`: đúng định dạng `class.method`, class tồn tại, là Spring bean (đúng 1 bean), có method `public boolean tenHam(ApiRequest)` | Không khởi động |
+| `<validator>`: đúng định dạng `class.method`, class tồn tại, là Spring bean (đúng 1 bean), có method `public void tenHam(ApiRequest)` hoặc `public boolean tenHam(ApiRequest)` | Không khởi động |
 | Endpoint có trong controller nhưng **không** khai báo trong xml và không thuộc danh sách loại trừ | Không khởi động; endpoint bị thiếu được liệt kê trong lỗi cấu hình |
 
 Các endpoint thuộc danh sách `api-flow.exclude-paths` (cũng như các path hệ thống được loại trừ mặc định) không cần khai báo trong XML.

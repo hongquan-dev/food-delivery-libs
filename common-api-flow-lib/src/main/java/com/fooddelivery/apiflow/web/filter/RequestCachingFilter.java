@@ -1,7 +1,7 @@
 package com.fooddelivery.apiflow.web.filter;
 
 import com.fooddelivery.apiflow.exception.ApiFlowErrorCode;
-import com.fooddelivery.apiflow.web.response.ApiResponseWriter;
+import com.fooddelivery.web.handler.ApiResponseWriter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

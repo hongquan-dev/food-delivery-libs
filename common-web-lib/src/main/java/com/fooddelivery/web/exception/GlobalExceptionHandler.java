@@ -1,8 +1,8 @@
 package com.fooddelivery.web.exception;
 
 import com.fooddelivery.web.handler.ResponseHandler;
-import com.fooddelivery.web.model.ApiResponse;
-import com.fooddelivery.web.status.ApiStatus;
+import com.fooddelivery.dto.response.ApiResponse;
+import com.fooddelivery.dto.response.ApiStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.TypeMismatchException;

@@ -15,20 +15,31 @@
     <packaging>jar</packaging>
 
     <name>Food Delivery :: Common Web Library</name>
-    <description>Standard API response format (ApiResponse, ResponseHandler) for Spring MVC microservices</description>
+    <description>Spring MVC side of the API response format: ResponseHandler, ApiResponseWriter, BusinessException and GlobalExceptionHandler</description>
 
     <dependencies>
+        <!-- ApiResponse, ApiStatus, FieldErrorDetail, PageMeta -->
+        <dependency>
+            <groupId>com.fooddelivery</groupId>
+            <artifactId>common-dto-lib</artifactId>
+        </dependency>
         <!-- ResponseEntity, HttpHeaders, HttpStatusCode -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
         </dependency>
-        <!-- @JsonInclude, @JsonPropertyOrder on ApiResponse -->
+        <!-- ApiResponseWriter serializes ApiResponse with the application's ObjectMapper -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
+            <artifactId>jackson-databind</artifactId>
         </dependency>
-        <!-- CommonWebAutoConfiguration registers GlobalExceptionHandler in every Spring Boot service -->
+        <!-- Fallback ObjectMapper of ApiResponseWriter: serializes ApiResponse.timestamp (Instant) as ISO-8601 -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+        <!-- CommonWebAutoConfiguration registers GlobalExceptionHandler and ApiResponseWriter in every Spring Boot
+             service -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
@@ -38,7 +49,8 @@
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-api</artifactId>
         </dependency>
-        <!-- ResponseHandler reads the current request path; provided by the servlet container of the service -->
+        <!-- ResponseHandler reads the current request path and ApiResponseWriter writes to the servlet response;
+             provided by the servlet container of the service -->
         <dependency>
             <groupId>jakarta.servlet</groupId>
             <artifactId>jakarta.servlet-api</artifactId>

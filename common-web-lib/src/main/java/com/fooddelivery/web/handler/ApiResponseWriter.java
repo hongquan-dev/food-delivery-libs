@@ -1,8 +1,8 @@
-package com.fooddelivery.apiflow.web.response;
+package com.fooddelivery.web.handler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fooddelivery.web.model.ApiResponse;
-import com.fooddelivery.web.status.ApiStatus;
+import com.fooddelivery.dto.response.ApiResponse;
+import com.fooddelivery.dto.response.ApiStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
@@ -11,9 +11,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Writes an {@link ApiResponse} (shared format from common-web-lib) directly to the servlet response, for code that
- * answers outside a controller ({@code RequestCachingFilter}, {@code ApiFlowInterceptor}). Uses the application's
- * ObjectMapper, so the JSON looks the same as a controller response.
+ * Writes an {@link ApiResponse} directly to the servlet response, for code that answers outside a controller: servlet
+ * filters and interceptors, e.g. {@code RequestCachingFilter} and {@code ApiFlowInterceptor} of common-api-flow-lib or a
+ * service's own filter. Uses the application's ObjectMapper, so the JSON looks the same as a controller response.
+ *
+ * <p>Registered as a bean by {@code CommonWebAutoConfiguration}; inject it instead of creating one.
  */
 public class ApiResponseWriter {
     private final ObjectMapper objectMapper;

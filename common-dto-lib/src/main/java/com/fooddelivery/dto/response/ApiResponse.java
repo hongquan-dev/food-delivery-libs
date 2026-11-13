@@ -1,8 +1,7 @@
-package com.fooddelivery.web.model;
+package com.fooddelivery.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import com.fooddelivery.web.status.ApiStatus;
 
 import java.time.Instant;
 import java.util.List;
@@ -16,9 +15,12 @@ import java.util.List;
  *   "errors": [{ "field": "price", "message": "..." }], "timestamp": "...", "path": "/orders/7" }
  * </pre>
  *
- * <p>Factories leave {@code status} {@code null}; {@code ResponseHandler} (or api-flow's {@code ApiResponseWriter})
+ * <p>Factories leave {@code status} {@code null}; {@code ResponseHandler} or {@code ApiResponseWriter} (common-web-lib)
  * fills it via {@link #withStatus} so it always matches the real HTTP status. {@code meta} and {@code path} are omitted
  * from the JSON when {@code null}, {@code errors} also when empty. Immutable.
+ *
+ * <p>Plain Java with Jackson annotations only, so a service without Spring MVC (e.g. the WebFlux gateway) can answer
+ * in the same format.
  *
  * @param success   {@code true} for a 2xx response, {@code false} for an error
  * @param status    HTTP status of the response, {@code null} until {@link #withStatus} is called

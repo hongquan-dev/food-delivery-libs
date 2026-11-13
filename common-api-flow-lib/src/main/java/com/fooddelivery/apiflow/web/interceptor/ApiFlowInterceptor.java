@@ -7,7 +7,7 @@ import com.fooddelivery.apiflow.route.RouteDefinition;
 import com.fooddelivery.apiflow.validation.ResolvedValidator;
 import com.fooddelivery.apiflow.validation.JsonSchemaUtil;
 import com.fooddelivery.apiflow.web.filter.CachedBodyHttpServletRequest;
-import com.fooddelivery.apiflow.web.response.ApiResponseWriter;
+import com.fooddelivery.web.handler.ApiResponseWriter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
@@ -18,8 +18,9 @@ import org.springframework.web.servlet.HandlerInterceptor;
 /**
  * Core of the API flow, run before every controller call on non-excluded paths. Checks in order, stopping at the
  * first failure: route declared and handled by a controller (404 {@code API_NOT_FOUND}), body matches the route's
- * {@code <schema>} (400 {@code INVALID_REQUEST_BODY}), route's {@code <validator>} returns {@code true}
- * (400 {@code REQUEST_VALIDATION_FAILED}). Rejected requests never reach the controller.
+ * {@code <schema>} (400 {@code INVALID_REQUEST_BODY}), route's {@code <validator>} does not throw and, if it returns
+ * {@code boolean}, returns {@code true} (400 {@code REQUEST_VALIDATION_FAILED}). Rejected requests never reach the
+ * controller.
  */
 public class ApiFlowInterceptor implements HandlerInterceptor {
     private static final Logger log = LogManager.getLogger(ApiFlowInterceptor.class);

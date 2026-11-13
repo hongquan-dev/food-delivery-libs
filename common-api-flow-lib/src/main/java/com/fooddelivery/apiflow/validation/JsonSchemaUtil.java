@@ -7,32 +7,88 @@ import org.springframework.core.io.ClassPathResource;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Minimal JSON Schema checker for request bodies: structure and data types only; value rules belong in the route's
  * validator. Supports {@code type}, {@code required}, {@code properties}, {@code items} and
- * {@code additionalProperties}; other keywords are ignored.
+ * {@code additionalProperties} (boolean only), plus annotations such as {@code title} and {@code description}.
  *
- * <p>Unlike the standard, {@code additionalProperties} defaults to {@code false} (unknown fields are rejected at
- * every level) and an unknown {@code type} name never matches.
+ * <p>Any other keyword (e.g. {@code minLength}, {@code enum}, {@code pattern}) or an unknown {@code type} name is
+ * rejected at startup by {@link #loadSchema}, so a schema never looks stricter than what is actually checked. Unlike
+ * the standard, {@code additionalProperties} defaults to {@code false}: unknown fields are rejected at every level.
  */
 public final class JsonSchemaUtil {
     // FAIL_ON_TRAILING_TOKENS: reject bodies such as {"a":1}garbage instead of reading only the first value
     private static final ObjectMapper objectMapper = new ObjectMapper()
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
+    private static final Set<String> CHECKED_KEYWORDS =
+            Set.of("type", "required", "properties", "items", "additionalProperties");
+
+    // Documentation only, never checked
+    private static final Set<String> ANNOTATION_KEYWORDS =
+            Set.of("$schema", "$id", "$comment", "title", "description", "examples", "default");
+
+    private static final Set<String> TYPES =
+            Set.of("object", "array", "string", "integer", "number", "boolean", "null");
+
     private JsonSchemaUtil() {}
 
-    // Called once per route at startup by ApiRegistry. The root of a schema file must be a JSON object
+    // Called once per route at startup by ApiRegistry. The root of a schema file must be a JSON object, and every
+    // (sub)schema may only use the supported keywords
     public static JsonNode loadSchema(String classpathLocation) throws IOException {
         try (InputStream inputStream = new ClassPathResource(classpathLocation).getInputStream()) {
             JsonNode schema = objectMapper.readTree(inputStream);
             if (schema == null || !schema.isObject()) {
                 throw new IOException("Schema file must be a JSON object: " + classpathLocation);
             }
+            List<String> problems = new ArrayList<>();
+            checkKeywords(schema, "#", problems);
+            if (!problems.isEmpty()) {
+                throw new IOException(String.join("; ", problems));
+            }
             return schema;
+        }
+    }
+
+    // Collects every unsupported keyword or malformed value of a (sub)schema, with its location,
+    // e.g. "#/properties/username: unsupported keyword 'minLength'"
+    private static void checkKeywords(JsonNode schema, String location, List<String> problems) {
+        if (!schema.isObject()) {
+            problems.add(location + ": a schema must be a JSON object");
+            return;
+        }
+        schema.fieldNames().forEachRemaining(keyword -> {
+            if (!CHECKED_KEYWORDS.contains(keyword) && !ANNOTATION_KEYWORDS.contains(keyword)) {
+                problems.add(location + ": unsupported keyword '" + keyword + "'");
+            }
+        });
+
+        JsonNode type = schema.get("type");
+        if (type != null) {
+            for (JsonNode name : type.isArray() ? type : List.of(type)) {
+                if (!name.isTextual() || !TYPES.contains(name.asText())) {
+                    problems.add(location + ": unknown type " + name + ", expected one of " + TYPES);
+                }
+            }
+        }
+        JsonNode additionalProperties = schema.get("additionalProperties");
+        if (additionalProperties != null && !additionalProperties.isBoolean()) {
+            problems.add(location + ": additionalProperties must be true or false");
+        }
+        JsonNode properties = schema.get("properties");
+        if (properties != null) {
+            properties.fields().forEachRemaining(property ->
+                    checkKeywords(property.getValue(), location + "/properties/" + property.getKey(), problems));
+        }
+        JsonNode items = schema.get("items");
+        if (items != null) {
+            checkKeywords(items, location + "/items", problems);
         }
     }
 

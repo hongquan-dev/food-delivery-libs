@@ -1,4 +1,4 @@
-package com.fooddelivery.web.model;
+package com.fooddelivery.dto.response;
 
 /**
  * Pagination info returned in {@code "meta"} by {@link ApiResponse#page}. Page numbers start at 0.

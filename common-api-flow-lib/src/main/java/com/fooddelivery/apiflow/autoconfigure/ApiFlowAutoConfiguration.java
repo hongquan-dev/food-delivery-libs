@@ -1,17 +1,14 @@
 package com.fooddelivery.apiflow.autoconfigure;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fooddelivery.apiflow.route.ApiRegistry;
 import com.fooddelivery.apiflow.route.ApiRouteVerifier;
 import com.fooddelivery.apiflow.web.filter.RequestCachingFilter;
 import com.fooddelivery.apiflow.web.interceptor.ApiFlowInterceptor;
 import com.fooddelivery.apiflow.web.resolver.ApiRequestArgumentResolver;
-import com.fooddelivery.apiflow.web.response.ApiResponseWriter;
+import com.fooddelivery.web.autoconfigure.CommonWebAutoConfiguration;
+import com.fooddelivery.web.handler.ApiResponseWriter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -36,23 +33,15 @@ import java.util.List;
  * (route lookup, JSON Schema, business validator; skipped on excluded paths) -> controller, which may take a
  * {@code ApiRequest} parameter via {@link ApiRequestArgumentResolver}. At startup, {@link ApiRegistry}
  * loads the routes file and {@link ApiRouteVerifier} cross-checks it against the controllers.
+ *
+ * <p>Error responses of the filter and the interceptor are written by the {@link ApiResponseWriter} bean of
+ * {@link CommonWebAutoConfiguration} (common-web-lib), hence the ordering after it.
  */
-@AutoConfiguration(after = JacksonAutoConfiguration.class)
+@AutoConfiguration(after = {JacksonAutoConfiguration.class, CommonWebAutoConfiguration.class})
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @EnableConfigurationProperties(ApiFlowProperties.class)
 public class ApiFlowAutoConfiguration {
     private static final Logger log = LogManager.getLogger(ApiFlowAutoConfiguration.class);
-
-    // Used by the filter and the interceptor to write error responses with the same JSON settings as controllers.
-    // Falls back to a standalone mapper (ISO dates) if the application has no ObjectMapper bean
-    @Bean
-    @ConditionalOnMissingBean
-    public ApiResponseWriter apiResponseWriter(ObjectProvider<ObjectMapper> objectMapper) {
-        return new ApiResponseWriter(objectMapper.getIfAvailable(() -> JsonMapper.builder()
-                .findAndAddModules()
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                .build()));
-    }
 
     // Loads and validates api-routes.xml when the bean is created (fails fast on a broken file)
     @Bean

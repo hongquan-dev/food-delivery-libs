@@ -81,6 +81,13 @@
                     <artifactId>maven-source-plugin</artifactId>
                     <version>3.3.0</version>
                 </plugin>
+                <!-- Maven 3.6 defaults to surefire 2.12, which does not see JUnit 5 tests and silently runs none.
+                     Same version as the Spring Boot parent of the services -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.2.5</version>
+                </plugin>
             </plugins>
         </pluginManagement>
 

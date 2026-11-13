@@ -29,9 +29,9 @@ import java.util.Set;
 /**
  * Startup check, run once after all singletons are created, that keeps api-routes.xml and the controllers in sync:
  * every route must map to a controller method (in the class named by {@code <controller>}, when given), every
- * application endpoint must be declared or excluded, and every
- * {@code <validator>} must resolve to a bean method {@code public boolean name(ApiRequest)}, which is then
- * cached on the route as a {@link ResolvedValidator}.
+ * application endpoint must be declared or excluded, and every {@code <validator>} must resolve to a bean method
+ * {@code public void name(ApiRequest)} or {@code public boolean name(ApiRequest)}, which is then cached on the route as
+ * a {@link ResolvedValidator}.
  *
  * <p>All problems are thrown together as one {@link ApiFlowConfigException}. Paths are compared after
  * {@link ApiRegistry#normalizePattern}, so {@code /orders/{id}} matches {@code @GetMapping("/orders/{orderId}")}.
@@ -118,12 +118,13 @@ public class ApiRouteVerifier implements SmartInitializingSingleton {
         try {
             method = bean.getClass().getMethod(methodName, ApiRequest.class);
         } catch (NoSuchMethodException e) {
-            errors.add(label + ": validator method not found: public boolean " + methodName
+            errors.add(label + ": validator method not found: public void " + methodName
                     + "(ApiRequest request) in " + className);
             return;
         }
-        if (method.getReturnType() != boolean.class && method.getReturnType() != Boolean.class) {
-            errors.add(label + ": validator method " + className + "." + methodName + " must return boolean");
+        Class<?> returnType = method.getReturnType();
+        if (returnType != void.class && returnType != boolean.class && returnType != Boolean.class) {
+            errors.add(label + ": validator method " + className + "." + methodName + " must return void or boolean");
             return;
         }
 

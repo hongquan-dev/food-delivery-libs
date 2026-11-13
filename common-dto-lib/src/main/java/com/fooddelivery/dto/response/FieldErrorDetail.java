@@ -1,4 +1,4 @@
-package com.fooddelivery.web.model;
+package com.fooddelivery.dto.response;
 
 /**
  * One entry of {@code "errors"} in an {@link ApiResponse}: which field is wrong and why, so the frontend can show the

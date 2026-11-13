@@ -15,13 +15,14 @@
     <packaging>jar</packaging>
 
     <name>Food Delivery :: Common DTO Library</name>
-    <description>Shared Enums, Base DTOs, and Pagination Models for Food Delivery Microservices</description>
+    <description>Plain Java models shared by every service: API response format (ApiResponse, ApiStatus, FieldErrorDetail, PageMeta), shared enums and DTOs exchanged between services</description>
 
     <dependencies>
+        <!-- @JsonInclude, @JsonPropertyOrder on ApiResponse. The only dependency, so the models work with or without
+             Spring MVC, e.g. in the WebFlux gateway -->
         <dependency>
-            <groupId>com.fooddelivery</groupId>
-            <artifactId>common-id-lib</artifactId>
-            <version>${project.version}</version>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
         </dependency>
     </dependencies>
 </project>

@@ -1,4 +1,4 @@
-package com.fooddelivery.web.status;
+package com.fooddelivery.dto.response;
 
 /**
  * HTTP statuses allowed for the project's APIs, used instead of Spring's {@code HttpStatus} when calling

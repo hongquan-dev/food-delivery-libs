@@ -4,12 +4,24 @@ Các thư viện dùng chung cho các microservice của dự án Food Delivery.
 
 ## Danh sách thư viện
 
-| Thư viện | Mô tả | Có cấu hình properties? | Trạng thái |
+| Thư viện | Mô tả | Phụ thuộc | Có cấu hình properties? |
 |---|---|---|---|
-| [common-id-lib](common-id-lib/README.md) | Sinh và giải mã ID 14 chữ số theo thời gian | Không | Đang dùng |
-| [common-dto-lib](common-dto-lib/README.md) | Enum, DTO, model phân trang dùng chung | Không | Chưa có nội dung |
-| [common-web-lib](common-web-lib/README.md) | Format response chung: `ApiResponse` (body), `ResponseHandler` (trả response), `ApiStatus` (status) | Không | Đang dùng |
-| [common-api-flow-lib](common-api-flow-lib/README.md) | Đăng ký API, check JSON Schema, gọi validator, giới hạn body. Phụ thuộc `common-web-lib` | **Có** (`api-flow.*`) | Đang dùng |
+| [common-id-lib](common-id-lib/README.md) | Sinh và giải mã ID 14 chữ số theo thời gian. Java thuần | Không | Không |
+| [common-dto-lib](common-dto-lib/README.md) | Model thuần dùng chung: format response (`ApiResponse`, `ApiStatus`, `FieldErrorDetail`, `PageMeta`), enum và DTO trao đổi giữa các service | Chỉ `jackson-annotations` | Không |
+| [common-web-lib](common-web-lib/README.md) | Phần Spring MVC của format response: `ResponseHandler`, `ApiResponseWriter`, `BusinessException`, `GlobalExceptionHandler` | `common-dto-lib` | Không |
+| [common-api-flow-lib](common-api-flow-lib/README.md) | Đăng ký API, check JSON Schema, gọi validator, giới hạn body | `common-web-lib` | **Có** (`api-flow.*`) |
+
+```
+common-id-lib
+
+common-dto-lib  ◄──  common-web-lib  ◄──  common-api-flow-lib
+ (Java thuần)         (Spring MVC)          (Spring MVC)
+```
+
+- Service Spring MVC (auth, order, restaurant...) dùng cả bốn lib, qua `common-lib` của backend.
+- Service không phải Spring MVC, ví dụ gateway chạy WebFlux, chỉ dùng được `common-id-lib` và `common-dto-lib`.
+  `common-web-lib` và `common-api-flow-lib` cần servlet; riêng `common-api-flow-lib` kéo theo `spring-webmvc`, làm
+  Spring Boot nhận nhầm ứng dụng là servlet.
 
 Yêu cầu: Java 21, Maven, Spring Boot 3.3.2 (version của các dependency Spring được quản lý chung qua `spring-boot-dependencies` trong `pom.xml` gốc).
 

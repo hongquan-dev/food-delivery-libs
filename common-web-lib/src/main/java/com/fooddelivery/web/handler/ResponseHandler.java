@@ -1,8 +1,8 @@
 package com.fooddelivery.web.handler;
 
-import com.fooddelivery.web.model.ApiResponse;
-import com.fooddelivery.web.model.FieldErrorDetail;
-import com.fooddelivery.web.status.ApiStatus;
+import com.fooddelivery.dto.response.ApiResponse;
+import com.fooddelivery.dto.response.FieldErrorDetail;
+import com.fooddelivery.dto.response.ApiStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
